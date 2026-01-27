@@ -20,9 +20,21 @@ namespace ADAT_Project
             throw new NotImplementedException();
         }
 
-        public bool Delete(int id)
+        public bool Delete(int CardId)
         {
-            throw new NotImplementedException();
+            using (SqlConnection conn = new SqlConnection(_connectionString))
+            {
+                conn.Open();
+
+                using (SqlCommand cmd = new SqlCommand(
+                    "DELETE FROM dbo.Cards WHERE card_id = @CardId;", conn))
+                {
+                    cmd.Parameters.AddWithValue("@CardId", CardId);
+
+                    int rows = cmd.ExecuteNonQuery();
+                    return rows == 1;
+                }
+            }
         }
 
         public IEnumerable<Card> GetAll()
