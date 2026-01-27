@@ -116,9 +116,28 @@ namespace ADAT_Project
         }
 
 
-        public void Update(Card entity)
+        public bool UpdateOrder(Card card)
         {
-            throw new NotImplementedException();
+            using (SqlConnection conn = new SqlConnection(_connectionString))
+            {
+                conn.Open();
+
+                using (SqlCommand cmd = new SqlCommand(
+                  @"UPDATE dbo.Cars
+                  SET CustomerId = @CustomerId,
+                  OrderDate = @OrderDate,
+                  OrderStatus = @OrderStatus
+              WHERE OrderId = @OrderId;", conn))
+                {
+                    cmd.Parameters.AddWithValue("@CustomerId", order.CustomerId);
+                    cmd.Parameters.AddWithValue("@OrderDate", order.OrderDate);
+                    cmd.Parameters.AddWithValue("@OrderStatus", order.OrderStatus);
+                    cmd.Parameters.AddWithValue("@OrderId", order.OrderId);
+
+                    int rows = cmd.ExecuteNonQuery();
+                    return rows == 1;
+                }
+            }
         }
     }
 }
