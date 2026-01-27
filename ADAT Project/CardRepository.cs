@@ -20,7 +20,7 @@ namespace ADAT_Project
             throw new NotImplementedException();
         }
 
-        public void Delete(int id)
+        public bool Delete(int id)
         {
             throw new NotImplementedException();
         }
@@ -115,26 +115,30 @@ namespace ADAT_Project
             return result;
         }
 
-
-        public bool UpdateOrder(Card card)
+        public bool Update(Card card)
         {
             using (SqlConnection conn = new SqlConnection(_connectionString))
             {
                 conn.Open();
 
                 using (SqlCommand cmd = new SqlCommand(
-                  @"UPDATE dbo.Cars
-                  SET CustomerId = @CustomerId,
-                  OrderDate = @OrderDate,
-                  OrderStatus = @OrderStatus
-              WHERE OrderId = @OrderId;", conn))
+                  @"UPDATE dbo.Cards
+                  name = @Name,
+                  mana_cost = @Manacost
+                  power = Power
+                  toughness = Toughness
+                  rarity = Rarity
+                  is_legendary = IsLegendary"
+                  , conn))
                 {
-                    cmd.Parameters.AddWithValue("@CustomerId", order.CustomerId);
-                    cmd.Parameters.AddWithValue("@OrderDate", order.OrderDate);
-                    cmd.Parameters.AddWithValue("@OrderStatus", order.OrderStatus);
-                    cmd.Parameters.AddWithValue("@OrderId", order.OrderId);
-
+                    cmd.Parameters.AddWithValue("@Name", card.Name);
+                    cmd.Parameters.AddWithValue("@ManaCost", card.ManaCost);
+                    cmd.Parameters.AddWithValue("@Power", card.Power);
+                    cmd.Parameters.AddWithValue("@Toughness", card.Toughness);
+                    cmd.Parameters.AddWithValue("@Rarity", card.Rarity);
+                    cmd.Parameters.AddWithValue("@IsLegendary", card.IsLegendary);
                     int rows = cmd.ExecuteNonQuery();
+
                     return rows == 1;
                 }
             }
