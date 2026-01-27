@@ -136,10 +136,10 @@ namespace ADAT_Project
                 using (SqlCommand cmd = new SqlCommand(
                   @"UPDATE dbo.Cards
                   name = @Name,
-                  mana_cost = @Manacost
-                  power = Power
-                  toughness = Toughness
-                  rarity = Rarity
+                  mana_cost = @Manacost,
+                  power = Power,
+                  toughness = Toughness,
+                  rarity = Rarity,
                   is_legendary = IsLegendary"
                   , conn))
                 {
