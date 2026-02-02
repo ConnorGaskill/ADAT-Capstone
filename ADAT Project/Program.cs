@@ -6,8 +6,10 @@ string connectionString =
 
 CardRepository repo = new CardRepository(connectionString);
 
-TestGetAll(connectionString);
-TestGetById(connectionString);
+//TestGetAll(connectionString);
+//TestGetById(connectionString);
+
+TestGetAllFull(connectionString);
 
 
 static void TestGetAll(string conn)
@@ -42,5 +44,18 @@ static void TestGetById(string conn)
         Console.WriteLine($"Error, card found: {card}");
     }
 
+
+}
+
+static void TestGetAllFull(string conn) {
+
+    CardRepository repo = new CardRepository(conn);
+
+    IEnumerable<Card> cards = repo.GetAllFull();
+
+    foreach (Card card in cards)
+    {
+        Console.WriteLine(card.ToFullDetailString());
+    }
 
 }

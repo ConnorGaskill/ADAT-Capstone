@@ -1,6 +1,8 @@
-﻿using Microsoft.Data.SqlClient;
+﻿using ADAT_Project.Models;
+using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -22,7 +24,15 @@ namespace ADAT_Project
 
         public bool Delete(int id)
         {
-            throw new NotImplementedException();
+            using SqlConnection conn = new SqlConnection(_connectionString);
+            using SqlCommand cmd = new SqlCommand(
+                @"DELETE FROM dbo.Cards
+            WHERE card_id = @CardId;", conn);
+
+            cmd.Parameters.Add("@CardId", SqlDbType.Int).Value = id;
+
+            conn.Open();
+            return cmd.ExecuteNonQuery() == 1;
         }
 
         public IEnumerable<Card> GetAll()
@@ -69,6 +79,48 @@ namespace ADAT_Project
 
             return results;
         }
+
+        public IEnumerable<Card> GetAllFull()
+        {
+            var cards = new List<Card>();
+
+            using var conn = new SqlConnection(_connectionString);
+            using var cmd = new SqlCommand("GetAllCardsFull", conn)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            conn.Open();
+            using var reader = cmd.ExecuteReader();
+
+            while (reader.Read())
+            {
+                var card = new Card
+                {
+                    CardId = reader.GetInt32(reader.GetOrdinal("card_id")),
+                    Name = reader.GetString(reader.GetOrdinal("name")),
+                    ManaCost = reader["mana_cost"] as string,
+                    OracleText = reader["oracle_text"] as string,
+                    Power = reader["power"] as string,
+                    Toughness = reader["toughness"] as string,
+                    Rarity = reader["rarity"] as string,
+                    IsLegendary = reader.GetBoolean(reader.GetOrdinal("is_legendary"))
+                };
+
+                card.Colors = (reader["colors"] as string)?
+                    .Split(", ").Select(c => new Color { Name = c }).ToList()
+                    ?? new();
+
+                card.Types = (reader["types"] as string)?
+                    .Split(", ").ToList()
+                    ?? new();
+
+                cards.Add(card);
+            }
+
+            return cards;
+        }
+
 
         public Card? GetById(int id)
         {
@@ -117,31 +169,44 @@ namespace ADAT_Project
 
         public bool Update(Card card)
         {
-            using (SqlConnection conn = new SqlConnection(_connectionString))
-            {
-                conn.Open();
+            using SqlConnection conn = new SqlConnection(_connectionString);
+            using SqlCommand cmd = new SqlCommand(
+            @"UPDATE dbo.cards
+         SET
+          name = @Name,
+          mana_cost = @ManaCost,
+          power = @Power,
+          toughness = @Toughness,
+          rarity = @Rarity,
+          is_legendary = @IsLegendary
+         WHERE card_id = @CardId;", conn);
 
-                using (SqlCommand cmd = new SqlCommand(
-                  @"UPDATE dbo.Cards
-                  name = @Name,
-                  mana_cost = @Manacost
-                  power = Power
-                  toughness = Toughness
-                  rarity = Rarity
-                  is_legendary = IsLegendary"
-                  , conn))
-                {
-                    cmd.Parameters.AddWithValue("@Name", card.Name);
-                    cmd.Parameters.AddWithValue("@ManaCost", card.ManaCost);
-                    cmd.Parameters.AddWithValue("@Power", card.Power);
-                    cmd.Parameters.AddWithValue("@Toughness", card.Toughness);
-                    cmd.Parameters.AddWithValue("@Rarity", card.Rarity);
-                    cmd.Parameters.AddWithValue("@IsLegendary", card.IsLegendary);
-                    int rows = cmd.ExecuteNonQuery();
+            cmd.Parameters.Add("@CardId", SqlDbType.Int).Value = card.CardId;
+            cmd.Parameters.Add("@Name", SqlDbType.VarChar, 255).Value = card.Name;
+            cmd.Parameters.Add("@ManaCost", SqlDbType.VarChar, 50).Value =
+                (object?)card.ManaCost ?? DBNull.Value;
+            cmd.Parameters.Add("@Power", SqlDbType.VarChar, 10).Value =
+                (object?)card.Power ?? DBNull.Value;
+            cmd.Parameters.Add("@Toughness", SqlDbType.VarChar, 10).Value =
+                (object?)card.Toughness ?? DBNull.Value;
+            cmd.Parameters.Add("@Rarity", SqlDbType.VarChar, 20).Value =
+                (object?)card.Rarity ?? DBNull.Value;
+            cmd.Parameters.Add("@IsLegendary", SqlDbType.Bit).Value = card.IsLegendary;
 
-                    return rows == 1;
-                }
-            }
+            conn.Open();
+            return cmd.ExecuteNonQuery() == 1;
+        }
+
+
+        public void ResetCardTable()
+        {
+            using SqlConnection conn = new SqlConnection(_connectionString);
+            using SqlCommand cmd = new SqlCommand("ResetCardTable", conn);
+
+            cmd.CommandType = CommandType.StoredProcedure;
+
+            conn.Open();
+            cmd.ExecuteNonQuery();
         }
     }
 }
