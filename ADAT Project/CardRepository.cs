@@ -17,10 +17,91 @@ namespace ADAT_Project
         {
             _connectionString = connectionString;
         }
-        public void Add(Card entity)
+
+        public int Add(Card card)
         {
-            throw new NotImplementedException();
+            using SqlConnection conn = new SqlConnection(_connectionString);
+            conn.Open();
+
+            using SqlTransaction tx = conn.BeginTransaction();
+
+            try
+            {
+                // 1. Insert card
+                int cardId;
+                using (SqlCommand cmd = new SqlCommand(
+                    @"INSERT INTO dbo.Cards
+              (name, mana_cost, oracle_text, power, toughness, rarity, is_legendary)
+              VALUES
+              (@Name, @ManaCost, @OracleText, @Power, @Toughness, @Rarity, @IsLegendary);
+              SELECT CAST(SCOPE_IDENTITY() AS int);",
+                    conn, tx))
+                {
+                    cmd.Parameters.AddWithValue("@Name", card.Name);
+                    cmd.Parameters.AddWithValue("@ManaCost", (object?)card.ManaCost ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@OracleText", (object?)card.OracleText ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@Power", (object?)card.Power ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@Toughness", (object?)card.Toughness ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@Rarity", (object?)card.Rarity ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@IsLegendary", card.IsLegendary);
+
+                    cardId = (int)cmd.ExecuteScalar();
+                }
+
+                // 2. Insert colors
+                foreach (var color in card.Colors)
+                {
+                    using SqlCommand cmd = new SqlCommand(
+                        @"INSERT INTO dbo.Card_Colors (card_id, color_id)
+                  SELECT @CardId, color_id FROM dbo.Colors WHERE name = @ColorName;",
+                        conn, tx);
+
+                    cmd.Parameters.AddWithValue("@CardId", cardId);
+                    cmd.Parameters.AddWithValue("@ColorName", color.Name);
+
+                    cmd.ExecuteNonQuery();
+                }
+
+                // 3. Insert types
+                foreach (var type in card.Types)
+                {
+                    using SqlCommand cmd = new SqlCommand(
+                        @"INSERT INTO dbo.Card_Types (card_id, type_id)
+                  SELECT @CardId, type_id FROM dbo.Types WHERE name = @TypeName;",
+                        conn, tx);
+
+                    cmd.Parameters.AddWithValue("@CardId", cardId);
+                    cmd.Parameters.AddWithValue("@TypeName", type);
+
+                    cmd.ExecuteNonQuery();
+                }
+
+                // 4. Insert printings
+                foreach (var printing in card.Printings)
+                {
+                    using SqlCommand cmd = new SqlCommand(
+                        @"INSERT INTO dbo.Card_Printings (card_id, set_id, collector_number)
+                  SELECT @CardId, set_id, @CollectorNumber
+                  FROM dbo.Sets WHERE code = @SetCode;",
+                        conn, tx);
+
+                    cmd.Parameters.AddWithValue("@CardId", cardId);
+                    cmd.Parameters.AddWithValue("@SetCode", printing.Set.Code);
+                    cmd.Parameters.AddWithValue("@CollectorNumber", printing.CollectorNumber);
+
+                    cmd.ExecuteNonQuery();
+                }
+
+                tx.Commit();
+                return cardId;
+            }
+            catch
+            {
+                tx.Rollback();
+                throw;
+            }
         }
+
 
         public bool Delete(int id)
         {
