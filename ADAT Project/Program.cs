@@ -5,28 +5,32 @@ string connectionString =
                 "Server=(localDB)\\MSSQLLocalDB;Database=mtg_database;" +
                 "Trusted_Connection=True;TrustServerCertificate=True;";
 
-CardRepository repo = new CardRepository(connectionString);
-
 //TestGetAll(connectionString);
 //TestGetById(connectionString);
 
 //TestGetAllFull(connectionString);
 
-Card card = new Card
+TestAdd(connectionString);
+
+static void TestAdd(string conn)
 {
-    Name = "Lightning Bolt",
-    ManaCost = "R",
-    OracleText = "Lightning Bolt deals 3 damage to any target.",
-    Power = null,
-    Toughness = null,
-    Rarity = "Common",
-    IsLegendary = false,
-    Colors = new List<Color>
+    CardRepository repo = new CardRepository(conn);
+
+    Card? card = new Card
+    {
+        Name = "Lightning Bolt",
+        ManaCost = "R",
+        OracleText = "Lightning Bolt deals 3 damage to any target.",
+        Power = null,
+        Toughness = null,
+        Rarity = "Common",
+        IsLegendary = false,
+        Colors = new List<Color>
     {
         new Color { Name = "Red" }
     },
-    Types = new List<string> { "Instant" },
-    Printings = new List<Printing>
+        Types = new List<string> { "Instant" },
+        Printings = new List<Printing>
     {
         new Printing
         {
@@ -38,13 +42,31 @@ Card card = new Card
             }
         }
     }
-};
-
-int cardId = repo.Add(card);
-
-Console.WriteLine(repo.GetById(cardId).ToFullDetailString());
+    };
 
 
+    int cardId = repo.Add(card);
+
+    Console.WriteLine("Adding Valid card...");
+
+    Console.WriteLine("Success: Card" +  repo.GetById(cardId).ToFullDetailString());
+
+    cardId = repo.Add(card);
+
+    Console.WriteLine("Testing adding duplicate card... ");
+
+    if (cardId == -1)
+    {
+        Console.WriteLine("Success: duplicate card not added -- transaction rolled back");
+    }
+    else
+    {
+        Console.WriteLine($"Error: Duplicate card added. CardId: {cardId}");
+    }
+        repo.ResetCardTable();
+
+
+}
 static void TestGetAll(string conn)
 {
     CardRepository repo = new CardRepository(conn);

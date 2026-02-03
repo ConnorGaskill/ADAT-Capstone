@@ -171,7 +171,7 @@ namespace ADAT_Project
             catch
             {
                 tx.Rollback();
-                throw;
+                return -1;
             }
         }
         public bool Delete(int id)
