@@ -49,23 +49,31 @@ static void TestAdd(string conn)
 
     Console.WriteLine("Adding Valid card...");
 
-    Console.WriteLine("Success: Card" +  repo.GetById(cardId).ToFullDetailString());
+    Console.WriteLine($" ---Success---\nAdded Card:\n {repo.GetById(cardId).ToFullDetailString()}");
 
     cardId = repo.Add(card);
 
     Console.WriteLine("Testing adding duplicate card... ");
 
-    if (cardId == -1)
+    IEnumerable<Card> cards = repo.GetAllFull();
+
+    int cardCount = 0;
+
+    foreach (Card c in cards)
     {
-        Console.WriteLine("Success: duplicate card not added -- transaction rolled back");
+        if (c.CardId == card.CardId)
+            cardCount++;
+    }
+
+    if (cardCount == 1)
+    {
+        Console.WriteLine("Success: Card was not duplicated on add");
     }
     else
     {
-        Console.WriteLine($"Error: Duplicate card added. CardId: {cardId}");
+        Console.WriteLine("Failure: card was duplicated");
     }
         repo.ResetCardTable();
-
-
 }
 static void TestGetAll(string conn)
 {
