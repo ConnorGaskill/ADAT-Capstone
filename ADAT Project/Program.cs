@@ -1,4 +1,5 @@
 ﻿using ADAT_Project;
+using ADAT_Project.Models;
 
 string connectionString =
                 "Server=(localDB)\\MSSQLLocalDB;Database=mtg_database;" +
@@ -6,8 +7,42 @@ string connectionString =
 
 CardRepository repo = new CardRepository(connectionString);
 
-TestGetAll(connectionString);
-TestGetById(connectionString);
+//TestGetAll(connectionString);
+//TestGetById(connectionString);
+
+//TestGetAllFull(connectionString);
+
+Card card = new Card
+{
+    Name = "Lightning Bolt",
+    ManaCost = "R",
+    OracleText = "Lightning Bolt deals 3 damage to any target.",
+    Power = null,
+    Toughness = null,
+    Rarity = "Common",
+    IsLegendary = false,
+    Colors = new List<Color>
+    {
+        new Color { Name = "Red" }
+    },
+    Types = new List<string> { "Instant" },
+    Printings = new List<Printing>
+    {
+        new Printing
+        {
+            CollectorNumber = "150",
+            Set = new Set
+            {
+                Code = "M10",
+                Name = "Magic 2010"
+            }
+        }
+    }
+};
+
+int cardId = repo.Add(card);
+
+Console.WriteLine(repo.GetById(cardId).ToFullDetailString());
 
 
 static void TestGetAll(string conn)
@@ -42,5 +77,18 @@ static void TestGetById(string conn)
         Console.WriteLine($"Error, card found: {card}");
     }
 
+
+}
+
+static void TestGetAllFull(string conn) {
+
+    CardRepository repo = new CardRepository(conn);
+
+    IEnumerable<Card> cards = repo.GetAllFull();
+
+    foreach (Card card in cards)
+    {
+        Console.WriteLine(card.ToFullDetailString());
+    }
 
 }
