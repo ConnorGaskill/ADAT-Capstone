@@ -10,42 +10,16 @@ string connectionString =
 
 //TestGetAllFull(connectionString);
 
-TestAdd(connectionString);
-TestDelete(connectionString);
-TestUpdate(connectionString);
+//TestAdd(connectionString);
+//TestDelete(connectionString);
+//TestUpdate(connectionString);
+TestAddWithAudit(connectionString);
 
 static void TestAdd(string conn)
 {
     CardRepository repo = new CardRepository(conn);
 
-    Card? card = new Card
-    {
-        Name = "Lightning Bolt",
-        ManaCost = "R",
-        OracleText = "Lightning Bolt deals 3 damage to any target.",
-        Power = null,
-        Toughness = null,
-        Rarity = "Common",
-        IsLegendary = false,
-        Colors = new List<Color>
-    {
-        new Color { Name = "Red" }
-    },
-        Types = new List<string> { "Instant" },
-        Printings = new List<Printing>
-    {
-        new Printing
-        {
-            CollectorNumber = "150",
-            Set = new Set
-            {
-                Code = "M10",
-                Name = "Magic 2010"
-            }
-        }
-    }
-    };
-
+    Card? card = CreateTestCard();
 
     int cardId = repo.Add(card);
 
@@ -176,4 +150,94 @@ static void TestUpdate(string conn)
     }
 
     repo.ResetCardTable();
+}
+
+static void TestAddWithAudit(string conn)
+{
+    var cardRepo = new CardRepository(conn);
+    var auditRepo = new AuditRepository(conn);
+
+    Card card = CreateTestCard();
+
+    try
+    {
+
+        Console.WriteLine("Testing with valid Card...");
+        int cardId = cardRepo.AddWithAudit(card);
+
+        // Verify card exists
+        var insertedCard = cardRepo.GetById(cardId);
+        Console.WriteLine(insertedCard != null
+            ? $"Card inserted: {insertedCard.Name}"
+            : "Card not found!");
+
+        var auditLogs = auditRepo.GetAll().Where(a => a.EntityId == cardId && a.EntityType == "Card");
+        Console.WriteLine(auditLogs.Any()
+            ? "Audit log created successfully."
+            : "Audit log not created.");
+
+        Console.WriteLine("\nTesting with invalid Card");
+
+        // Force failure by creating invalid card (Name = null)
+        Card invalidCard = new Card
+        {
+            Name = null,
+            ManaCost = "G",
+            OracleText = "Invalid card",
+            IsLegendary = false
+        };
+
+        try
+        {
+            cardRepo.AddWithAudit(invalidCard);
+            Console.WriteLine("FAILED: Invalid card was added (should not happen).");
+        }
+        catch
+        {
+            Console.WriteLine("AddWithAudit failed as expected for invalid card.");
+        }
+
+        // Ensure no extra audit was created
+        int auditCount = auditRepo.GetAll().Count(a => a.EntityType == "Card");
+        Console.WriteLine(auditCount == 1
+            ? "No audit log created for failed insert (as expected)."
+            : "Unexpected audit log created for failed insert.");
+    }
+    finally
+    {
+        cardRepo.ResetCardTable();
+        auditRepo.TruncateAuditTable();
+        Console.WriteLine("\nCleanup complete.");
+    }
+}
+
+static Card CreateTestCard()
+{
+    return new Card
+    {
+        Name = "Lightning Bolt",
+        ManaCost = "R",
+        OracleText = "Lightning Bolt deals 3 damage to any target.",
+        Power = null,
+        Toughness = null,
+        Rarity = "Common",
+        IsLegendary = false,
+        Colors = new List<Color>
+    {
+        new Color { Name = "Red" }
+    },
+        Types = new List<string> { "Instant" },
+        Printings = new List<Printing>
+    {
+        new Printing
+        {
+            CollectorNumber = "150",
+            Set = new Set
+            {
+                Code = "M10",
+                Name = "Magic 2010"
+            }
+        }
+    }
+    };
 }

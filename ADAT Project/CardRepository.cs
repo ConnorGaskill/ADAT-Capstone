@@ -13,12 +13,7 @@ namespace ADAT_Project
     {
         private readonly string _connectionString;
 
-        public CardRepository(string connectionString)
-        {
-            _connectionString = connectionString;
-        }
-
-        public int Add(Card card)
+        private T ExecuteInTransaction<T>(Func<SqlConnection, SqlTransaction, T> work)
         {
             using var conn = new SqlConnection(_connectionString);
             conn.Open();
@@ -27,152 +22,168 @@ namespace ADAT_Project
 
             try
             {
-                // 1. Insert card if not exists
-                using (var cmd = new SqlCommand(@"
-            INSERT INTO dbo.cards
-            (name, mana_cost, oracle_text, power, toughness, rarity, is_legendary)
-            SELECT @Name, @ManaCost, @OracleText, @Power, @Toughness, @Rarity, @IsLegendary
-            WHERE NOT EXISTS (
-                SELECT 1
-                FROM dbo.cards
-                WHERE name = @Name
-                  AND ISNULL(oracle_text, '') = ISNULL(@OracleText, '')
-            );", conn, tx))
-                {
-                    cmd.Parameters.AddWithValue("@Name", card.Name);
-                    cmd.Parameters.AddWithValue("@ManaCost", (object?)card.ManaCost ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@OracleText", (object?)card.OracleText ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@Power", (object?)card.Power ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@Toughness", (object?)card.Toughness ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@Rarity", (object?)card.Rarity ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@IsLegendary", card.IsLegendary);
-                    cmd.ExecuteNonQuery();
-                }
-
-                // 2. Get CardId
-                int cardId;
-                using (var cmd = new SqlCommand(@"
-            SELECT card_id
-            FROM dbo.cards
-            WHERE name = @Name
-              AND ISNULL(oracle_text, '') = ISNULL(@OracleText, '');", conn, tx))
-                {
-                    cmd.Parameters.AddWithValue("@Name", card.Name);
-                    cmd.Parameters.AddWithValue("@OracleText", (object?)card.OracleText ?? DBNull.Value);
-                    cardId = (int)cmd.ExecuteScalar();
-                }
-
-                // 3. Colors
-                foreach (var color in card.Colors)
-                {
-                    using var insertColor = new SqlCommand(@"
-                INSERT INTO dbo.colors (name)
-                SELECT @Name
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM dbo.colors WHERE name = @Name
-                );", conn, tx);
-
-                    insertColor.Parameters.AddWithValue("@Name", color.Name);
-                    insertColor.ExecuteNonQuery();
-
-                    int colorId;
-                    using var getColorId = new SqlCommand(
-                        "SELECT color_id FROM dbo.colors WHERE name = @Name;", conn, tx);
-                    getColorId.Parameters.AddWithValue("@Name", color.Name);
-                    colorId = (int)getColorId.ExecuteScalar();
-
-                    using var link = new SqlCommand(@"
-                INSERT INTO dbo.card_colors (card_id, color_id)
-                SELECT @CardId, @ColorId
-                WHERE NOT EXISTS (
-                    SELECT 1
-                    FROM dbo.card_colors
-                    WHERE card_id = @CardId AND color_id = @ColorId
-                );", conn, tx);
-
-                    link.Parameters.AddWithValue("@CardId", cardId);
-                    link.Parameters.AddWithValue("@ColorId", colorId);
-                    link.ExecuteNonQuery();
-                }
-
-                // 4. Types
-                foreach (var type in card.Types)
-                {
-                    using var insertType = new SqlCommand(@"
-                INSERT INTO dbo.types (name)
-                SELECT @Name
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM dbo.types WHERE name = @Name
-                );", conn, tx);
-
-                    insertType.Parameters.AddWithValue("@Name", type);
-                    insertType.ExecuteNonQuery();
-
-                    int typeId;
-                    using var getTypeId = new SqlCommand(
-                        "SELECT type_id FROM dbo.types WHERE name = @Name;", conn, tx);
-                    getTypeId.Parameters.AddWithValue("@Name", type);
-                    typeId = (int)getTypeId.ExecuteScalar();
-
-                    using var link = new SqlCommand(@"
-                INSERT INTO dbo.card_types (card_id, type_id)
-                SELECT @CardId, @TypeId
-                WHERE NOT EXISTS (
-                    SELECT 1
-                    FROM dbo.card_types
-                    WHERE card_id = @CardId AND type_id = @TypeId
-                );", conn, tx);
-
-                    link.Parameters.AddWithValue("@CardId", cardId);
-                    link.Parameters.AddWithValue("@TypeId", typeId);
-                    link.ExecuteNonQuery();
-                }
-
-                // 5. Printings + Sets
-                foreach (var printing in card.Printings)
-                {
-                    using var insertSet = new SqlCommand(@"
-                INSERT INTO dbo.sets (code, name)
-                SELECT @Code, @Name
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM dbo.sets WHERE code = @Code
-                );", conn, tx);
-
-                    insertSet.Parameters.AddWithValue("@Code", printing.Set.Code);
-                    insertSet.Parameters.AddWithValue("@Name", printing.Set.Name);
-                    insertSet.ExecuteNonQuery();
-
-                    int setId;
-                    using var getSetId = new SqlCommand(
-                        "SELECT set_id FROM dbo.sets WHERE code = @Code;", conn, tx);
-                    getSetId.Parameters.AddWithValue("@Code", printing.Set.Code);
-                    setId = (int)getSetId.ExecuteScalar();
-
-                    using var insertPrinting = new SqlCommand(@"
-                INSERT INTO dbo.card_printings (card_id, set_id, collector_number)
-                SELECT @CardId, @SetId, @CollectorNumber
-                WHERE NOT EXISTS (
-                    SELECT 1
-                    FROM dbo.card_printings
-                    WHERE card_id = @CardId
-                      AND set_id = @SetId
-                      AND collector_number = @CollectorNumber
-                );", conn, tx);
-
-                    insertPrinting.Parameters.AddWithValue("@CardId", cardId);
-                    insertPrinting.Parameters.AddWithValue("@SetId", setId);
-                    insertPrinting.Parameters.AddWithValue("@CollectorNumber", printing.CollectorNumber);
-                    insertPrinting.ExecuteNonQuery();
-                }
-
+                T result = work(conn, tx);
                 tx.Commit();
-                return cardId;
+                return result;
             }
             catch
             {
                 tx.Rollback();
-                return -1;
+                throw;
             }
+        }
+        private int AddCardLogic(Card card, SqlConnection conn, SqlTransaction tx)
+        {
+            // 1. Insert card if not exists
+            using (var cmd = new SqlCommand(@"
+        INSERT INTO dbo.cards
+            (name, mana_cost, oracle_text, power, toughness, rarity, is_legendary)
+        SELECT @Name, @ManaCost, @OracleText, @Power, @Toughness, @Rarity, @IsLegendary
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM dbo.cards
+            WHERE name = @Name
+              AND ISNULL(oracle_text, '') = ISNULL(@OracleText, '')
+        );", conn, tx))
+            {
+                cmd.Parameters.AddWithValue("@Name", card.Name);
+                cmd.Parameters.AddWithValue("@ManaCost", (object?)card.ManaCost ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@OracleText", (object?)card.OracleText ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@Power", (object?)card.Power ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@Toughness", (object?)card.Toughness ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@Rarity", (object?)card.Rarity ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@IsLegendary", card.IsLegendary);
+                cmd.ExecuteNonQuery();
+            }
+
+            // 2. Get CardId
+            int cardId;
+            using (var cmd = new SqlCommand(@"
+        SELECT card_id
+        FROM dbo.cards
+        WHERE name = @Name
+          AND ISNULL(oracle_text, '') = ISNULL(@OracleText, '');", conn, tx))
+            {
+                cmd.Parameters.AddWithValue("@Name", card.Name);
+                cmd.Parameters.AddWithValue("@OracleText", (object?)card.OracleText ?? DBNull.Value);
+                cardId = (int)cmd.ExecuteScalar();
+            }
+
+            // 3. Insert Colors
+            foreach (var color in card.Colors)
+            {
+                using var insertColor = new SqlCommand(@"
+            INSERT INTO dbo.colors (name)
+            SELECT @Name
+            WHERE NOT EXISTS (
+                SELECT 1 FROM dbo.colors WHERE name = @Name
+            );", conn, tx);
+                insertColor.Parameters.AddWithValue("@Name", color.Name);
+                insertColor.ExecuteNonQuery();
+
+                using var getColorId = new SqlCommand(
+                    "SELECT color_id FROM dbo.colors WHERE name = @Name;", conn, tx);
+                getColorId.Parameters.AddWithValue("@Name", color.Name);
+                int colorId = (int)getColorId.ExecuteScalar();
+
+                using var link = new SqlCommand(@"
+            INSERT INTO dbo.card_colors (card_id, color_id)
+            SELECT @CardId, @ColorId
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM dbo.card_colors
+                WHERE card_id = @CardId AND color_id = @ColorId
+            );", conn, tx);
+                link.Parameters.AddWithValue("@CardId", cardId);
+                link.Parameters.AddWithValue("@ColorId", colorId);
+                link.ExecuteNonQuery();
+            }
+
+            // 4. Insert Types
+            foreach (var type in card.Types)
+            {
+                using var insertType = new SqlCommand(@"
+            INSERT INTO dbo.types (name)
+            SELECT @Name
+            WHERE NOT EXISTS (
+                SELECT 1 FROM dbo.types WHERE name = @Name
+            );", conn, tx);
+                insertType.Parameters.AddWithValue("@Name", type);
+                insertType.ExecuteNonQuery();
+
+                using var getTypeId = new SqlCommand(
+                    "SELECT type_id FROM dbo.types WHERE name = @Name;", conn, tx);
+                getTypeId.Parameters.AddWithValue("@Name", type);
+                int typeId = (int)getTypeId.ExecuteScalar();
+
+                using var link = new SqlCommand(@"
+            INSERT INTO dbo.card_types (card_id, type_id)
+            SELECT @CardId, @TypeId
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM dbo.card_types
+                WHERE card_id = @CardId AND type_id = @TypeId
+            );", conn, tx);
+                link.Parameters.AddWithValue("@CardId", cardId);
+                link.Parameters.AddWithValue("@TypeId", typeId);
+                link.ExecuteNonQuery();
+            }
+
+            // 5. Insert Printings + Sets
+            foreach (var printing in card.Printings)
+            {
+                using var insertSet = new SqlCommand(@"
+            INSERT INTO dbo.sets (code, name)
+            SELECT @Code, @Name
+            WHERE NOT EXISTS (
+                SELECT 1 FROM dbo.sets WHERE code = @Code
+            );", conn, tx);
+                insertSet.Parameters.AddWithValue("@Code", printing.Set.Code);
+                insertSet.Parameters.AddWithValue("@Name", printing.Set.Name);
+                insertSet.ExecuteNonQuery();
+
+                using var getSetId = new SqlCommand(
+                    "SELECT set_id FROM dbo.sets WHERE code = @Code;", conn, tx);
+                getSetId.Parameters.AddWithValue("@Code", printing.Set.Code);
+                int setId = (int)getSetId.ExecuteScalar();
+
+                using var insertPrinting = new SqlCommand(@"
+            INSERT INTO dbo.card_printings (card_id, set_id, collector_number)
+            SELECT @CardId, @SetId, @CollectorNumber
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM dbo.card_printings
+                WHERE card_id = @CardId
+                  AND set_id = @SetId
+                  AND collector_number = @CollectorNumber
+            );", conn, tx);
+                insertPrinting.Parameters.AddWithValue("@CardId", cardId);
+                insertPrinting.Parameters.AddWithValue("@SetId", setId);
+                insertPrinting.Parameters.AddWithValue("@CollectorNumber", printing.CollectorNumber);
+                insertPrinting.ExecuteNonQuery();
+            }
+
+            return cardId;
+        }
+        public CardRepository(string connectionString)
+        {
+            _connectionString = connectionString;
+        }
+        public int Add(Card card)
+        {
+            return ExecuteInTransaction((conn, tx) => AddCardLogic(card, conn, tx));
+        }
+        public int AddWithAudit(Card card)
+        {
+            return ExecuteInTransaction((conn, tx) =>
+            {
+                int cardId = AddCardLogic(card, conn, tx);
+
+                var auditRepo = new AuditRepository(_connectionString);
+                auditRepo.InsertAuditRecord(cardId, "Card", "Insert", conn, tx);
+
+                return cardId;
+            });
         }
         public bool Delete(int id)
         {
@@ -186,7 +197,6 @@ namespace ADAT_Project
             conn.Open();
             return cmd.ExecuteNonQuery() == 1;
         }
-
         public IEnumerable<Card> GetAll()
         {
             List<Card> results = new List<Card>();
@@ -231,7 +241,6 @@ namespace ADAT_Project
 
             return results;
         }
-
         public IEnumerable<Card> GetAllFull()
         {
             var cards = new List<Card>();
@@ -272,8 +281,6 @@ namespace ADAT_Project
 
             return cards;
         }
-
-
         public Card? GetById(int id)
         {
             Card? result = null;
@@ -318,7 +325,6 @@ namespace ADAT_Project
 
             return result;
         }
-
         public bool Update(Card card)
         {
             using SqlConnection conn = new SqlConnection(_connectionString);
@@ -348,8 +354,6 @@ namespace ADAT_Project
             conn.Open();
             return cmd.ExecuteNonQuery() == 1;
         }
-
-
         public void ResetCardTable()
         {
             using SqlConnection conn = new SqlConnection(_connectionString);
