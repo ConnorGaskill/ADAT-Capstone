@@ -14,17 +14,36 @@ namespace ADAT_Project
             _connectionString = connectionString;
         }
 
-        public void InsertAuditRecord(int entityId, string entityType, string action, SqlConnection conn, SqlTransaction tx)
+        public void InsertAuditRecord(int entityId, string entityType, string action, SqlConnection conn, SqlTransaction? tx = null)
         {
-            // DO NOT open a new connection; use the one passed in
-            using var cmd = new SqlCommand(@"
-        INSERT INTO dbo.audit_log (entity_id, entity_type, action, created_at)
-        VALUES (@Id, @EntityType, @Action, GETUTCDATE());", conn, tx);
+            bool internalTx = false;
 
-            cmd.Parameters.AddWithValue("@Id", entityId);
-            cmd.Parameters.AddWithValue("@EntityType", entityType);
-            cmd.Parameters.AddWithValue("@Action", action);
-            cmd.ExecuteNonQuery();
+            if (tx == null)
+            {
+                using (tx = conn.BeginTransaction());
+
+                internalTx = true;
+            }
+            try
+            {
+                using var cmd = new SqlCommand(@"
+            INSERT INTO dbo.audit_log (entity_id, entity_type, action, created_at)
+            VALUES (@Id, @EntityType, @Action, GETUTCDATE());", conn, tx);
+
+                cmd.Parameters.AddWithValue("@Id", entityId);
+                cmd.Parameters.AddWithValue("@EntityType", entityType);
+                cmd.Parameters.AddWithValue("@Action", action);
+                cmd.ExecuteNonQuery();
+
+                if (internalTx)
+                    tx.Commit();
+            }
+            catch
+            {
+                if (internalTx)
+                tx.Rollback();
+                throw;
+            }
         }
 
         public IEnumerable<AuditLog> GetAll()
@@ -51,7 +70,6 @@ namespace ADAT_Project
             return results;
         }
 
-        // Truncate audit table
         public void TruncateAuditTable()
         {
             using var conn = new SqlConnection(_connectionString);

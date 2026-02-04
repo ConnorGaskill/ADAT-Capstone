@@ -12,8 +12,8 @@ string connectionString =
 
 //TestAdd(connectionString);
 //TestDelete(connectionString);
-TestUpdate(connectionString);
-//TestAddWithAudit(connectionString);
+//TestUpdate(connectionString);
+TestAddWithAudit(connectionString);
 
 static void TestAdd(string conn)
 {
