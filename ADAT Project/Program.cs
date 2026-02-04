@@ -11,6 +11,8 @@ string connectionString =
 //TestGetAllFull(connectionString);
 
 TestAdd(connectionString);
+TestDelete(connectionString);
+TestUpdate(connectionString);
 
 static void TestAdd(string conn)
 {
@@ -57,6 +59,8 @@ static void TestAdd(string conn)
 
     IEnumerable<Card> cards = repo.GetAllFull();
 
+    card = repo.GetById(cardId);
+
     int cardCount = 0;
 
     foreach (Card c in cards)
@@ -71,7 +75,7 @@ static void TestAdd(string conn)
     }
     else
     {
-        Console.WriteLine("Failure: card was duplicated");
+        Console.WriteLine("Failure: card was duplicated" + cardCount);
     }
         repo.ResetCardTable();
 }
@@ -110,7 +114,28 @@ static void TestGetById(string conn)
 
 }
 
-static void TestGetAllFull(string conn) {
+static void TestDelete(string conn)
+{
+    CardRepository repo = new CardRepository(conn);
+
+    Card card = repo.GetById(1);
+
+    Console.WriteLine("Testing Deleting an existing card...");
+
+    bool isDeleted = repo.Delete(card.CardId);
+
+    if (isDeleted)
+    {
+        Console.WriteLine($"--- Success---\nCard Deleted:\n{card.ToFullDetailString()}");
+    }
+    else
+    {
+        Console.WriteLine("Error: Card not deleted");
+    }
+    repo.ResetCardTable();
+}
+static void TestGetAllFull(string conn)
+{
 
     CardRepository repo = new CardRepository(conn);
 
@@ -121,4 +146,34 @@ static void TestGetAllFull(string conn) {
         Console.WriteLine(card.ToFullDetailString());
     }
 
+}
+
+static void TestUpdate(string conn)
+{
+    CardRepository repo = new CardRepository(conn);
+
+    Card card = repo.GetById(1);
+
+    Console.WriteLine("Testing Update...");
+
+    Console.WriteLine($"Card before: {card.ToFullDetailString()}");
+
+    card.Name = "Testing";
+    card.ManaCost = "Testing";
+
+    repo.Update(card);
+
+    card = repo.GetById(card.CardId);
+
+    Console.WriteLine($"Card after: {card.ToFullDetailString()}");
+
+    if (String.Equals(card.Name, "Testing")) {
+        Console.WriteLine("-- Success--");
+    }
+    else
+    {
+        Console.WriteLine("-- Failure --");
+    }
+
+    repo.ResetCardTable();
 }
