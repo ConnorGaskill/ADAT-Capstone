@@ -5,28 +5,34 @@ string connectionString =
                 "Server=(localDB)\\MSSQLLocalDB;Database=mtg_database;" +
                 "Trusted_Connection=True;TrustServerCertificate=True;";
 
-CardRepository repo = new CardRepository(connectionString);
-
 //TestGetAll(connectionString);
 //TestGetById(connectionString);
 
 //TestGetAllFull(connectionString);
 
-Card card = new Card
+TestAdd(connectionString);
+TestDelete(connectionString);
+TestUpdate(connectionString);
+
+static void TestAdd(string conn)
 {
-    Name = "Lightning Bolt",
-    ManaCost = "R",
-    OracleText = "Lightning Bolt deals 3 damage to any target.",
-    Power = null,
-    Toughness = null,
-    Rarity = "Common",
-    IsLegendary = false,
-    Colors = new List<Color>
+    CardRepository repo = new CardRepository(conn);
+
+    Card? card = new Card
+    {
+        Name = "Lightning Bolt",
+        ManaCost = "R",
+        OracleText = "Lightning Bolt deals 3 damage to any target.",
+        Power = null,
+        Toughness = null,
+        Rarity = "Common",
+        IsLegendary = false,
+        Colors = new List<Color>
     {
         new Color { Name = "Red" }
     },
-    Types = new List<string> { "Instant" },
-    Printings = new List<Printing>
+        Types = new List<string> { "Instant" },
+        Printings = new List<Printing>
     {
         new Printing
         {
@@ -38,13 +44,41 @@ Card card = new Card
             }
         }
     }
-};
-
-int cardId = repo.Add(card);
-
-Console.WriteLine(repo.GetById(cardId).ToFullDetailString());
+    };
 
 
+    int cardId = repo.Add(card);
+
+    Console.WriteLine("Adding Valid card...");
+
+    Console.WriteLine($" ---Success---\nAdded Card:\n {repo.GetById(cardId).ToFullDetailString()}");
+
+    cardId = repo.Add(card);
+
+    Console.WriteLine("Testing adding duplicate card... ");
+
+    IEnumerable<Card> cards = repo.GetAllFull();
+
+    card = repo.GetById(cardId);
+
+    int cardCount = 0;
+
+    foreach (Card c in cards)
+    {
+        if (c.CardId == card.CardId)
+            cardCount++;
+    }
+
+    if (cardCount == 1)
+    {
+        Console.WriteLine("Success: Card was not duplicated on add");
+    }
+    else
+    {
+        Console.WriteLine("Failure: card was duplicated" + cardCount);
+    }
+        repo.ResetCardTable();
+}
 static void TestGetAll(string conn)
 {
     CardRepository repo = new CardRepository(conn);
@@ -80,7 +114,28 @@ static void TestGetById(string conn)
 
 }
 
-static void TestGetAllFull(string conn) {
+static void TestDelete(string conn)
+{
+    CardRepository repo = new CardRepository(conn);
+
+    Card card = repo.GetById(1);
+
+    Console.WriteLine("Testing Deleting an existing card...");
+
+    bool isDeleted = repo.Delete(card.CardId);
+
+    if (isDeleted)
+    {
+        Console.WriteLine($"--- Success---\nCard Deleted:\n{card.ToFullDetailString()}");
+    }
+    else
+    {
+        Console.WriteLine("Error: Card not deleted");
+    }
+    repo.ResetCardTable();
+}
+static void TestGetAllFull(string conn)
+{
 
     CardRepository repo = new CardRepository(conn);
 
@@ -91,4 +146,34 @@ static void TestGetAllFull(string conn) {
         Console.WriteLine(card.ToFullDetailString());
     }
 
+}
+
+static void TestUpdate(string conn)
+{
+    CardRepository repo = new CardRepository(conn);
+
+    Card card = repo.GetById(1);
+
+    Console.WriteLine("Testing Update...");
+
+    Console.WriteLine($"Card before: {card.ToFullDetailString()}");
+
+    card.Name = "Testing";
+    card.ManaCost = "Testing";
+
+    repo.Update(card);
+
+    card = repo.GetById(card.CardId);
+
+    Console.WriteLine($"Card after: {card.ToFullDetailString()}");
+
+    if (String.Equals(card.Name, "Testing")) {
+        Console.WriteLine("-- Success--");
+    }
+    else
+    {
+        Console.WriteLine("-- Failure --");
+    }
+
+    repo.ResetCardTable();
 }
