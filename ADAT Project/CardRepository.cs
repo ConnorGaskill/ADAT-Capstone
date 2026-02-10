@@ -26,13 +26,14 @@ namespace ADAT_Project
                 tx.Commit();
                 return result;
             }
-            catch
+            catch (Exception ex)
             {
                 tx.Rollback();
-                throw;
+                throw ex;
             }
         }
-        private int AddCardLogic(Card card, SqlConnection conn, SqlTransaction tx)
+
+        private int InefficientAddCardLogic(Card card, SqlConnection conn, SqlTransaction tx)
         {
             // 1. Insert card if not exists
             using (var cmd = new SqlCommand(@"
@@ -165,6 +166,83 @@ namespace ADAT_Project
 
             return cardId;
         }
+        private int AddCardLogic(Card card, SqlConnection conn, SqlTransaction tx)
+        {
+            int cardId;
+
+            // 1. Get or insert card
+            using (var cmd = new SqlCommand("GetCardIdOrInsert", conn, tx))
+            {
+                cmd.CommandType = CommandType.StoredProcedure;
+
+                cmd.Parameters.AddWithValue("@Name", card.Name);
+                cmd.Parameters.AddWithValue("@ManaCost", (object?)card.ManaCost ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@OracleText", (object?)card.OracleText ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@Power", (object?)card.Power ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@Toughness", (object?)card.Toughness ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@Rarity", (object?)card.Rarity ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@IsLegendary", card.IsLegendary);
+
+                var outputId = new SqlParameter("@CardId", SqlDbType.Int)
+                {
+                    Direction = ParameterDirection.Output
+                };
+                cmd.Parameters.Add(outputId);
+
+                cmd.ExecuteNonQuery();
+                cardId = (int)outputId.Value;
+            }
+
+            // 2. Link colors
+            if (card.Colors.Count > 0)
+            {
+                string colorNames = string.Join(",", card.Colors.Select(c => c.Name));
+
+                using var cmd = new SqlCommand("LinkCardColors", conn, tx);
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.AddWithValue("@CardId", cardId);
+                cmd.Parameters.AddWithValue("@ColorNames", colorNames);
+
+                cmd.ExecuteNonQuery();
+            }
+
+            // 3`[. Insert printings + sets
+            foreach (var printing in card.Printings)
+            {
+                int setId;
+
+                // Get or insert set
+                using (var cmd = new SqlCommand("GetSetIdOrInsert", conn, tx))
+                {
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    cmd.Parameters.AddWithValue("@Code", printing.Set.Code);
+                    cmd.Parameters.AddWithValue("@Name", printing.Set.Name);
+
+                    var outputSetId = new SqlParameter("@SetId", SqlDbType.Int)
+                    {
+                        Direction = ParameterDirection.Output
+                    };
+                    cmd.Parameters.Add(outputSetId);
+
+                    cmd.ExecuteNonQuery();
+                    setId = (int)outputSetId.Value;
+                }
+
+                // Link printing
+                using (var cmd = new SqlCommand("LinkCardPrinting", conn, tx))
+                {
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    cmd.Parameters.AddWithValue("@CardId", cardId);
+                    cmd.Parameters.AddWithValue("@SetId", setId);
+                    cmd.Parameters.AddWithValue("@CollectorNumber", printing.CollectorNumber);
+
+                    cmd.ExecuteNonQuery();
+                }
+            }
+
+            return cardId;
+        }
+
         public CardRepository(string connectionString)
         {
             _connectionString = connectionString;
@@ -172,6 +250,11 @@ namespace ADAT_Project
         public int Add(Card card)
         {
             return ExecuteInTransaction((conn, tx) => AddCardLogic(card, conn, tx));
+        }
+
+        public int InefficientAdd(Card card)
+        {
+            return ExecuteInTransaction((conn, tx) => InefficientAddCardLogic(card, conn, tx));
         }
         public int AddWithAudit(Card card)
         {

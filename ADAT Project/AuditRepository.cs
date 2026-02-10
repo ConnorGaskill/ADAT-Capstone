@@ -14,16 +14,12 @@ namespace ADAT_Project
             _connectionString = connectionString;
         }
 
-        public void InsertAuditRecord(int entityId, string entityType, string action, SqlConnection conn, SqlTransaction? tx = null)
+        public void InsertAuditRecord(int entityId, string entityType, string action, SqlConnection conn, SqlTransaction? tx = default)
         {
-            bool internalTx = false;
+            bool internalTx = tx is null;
 
-            if (tx == null)
-            {
-                using (tx = conn.BeginTransaction());
+            tx ??= conn.BeginTransaction();
 
-                internalTx = true;
-            }
             try
             {
                 using var cmd = new SqlCommand(@"
@@ -38,10 +34,12 @@ namespace ADAT_Project
                 if (internalTx)
                     tx.Commit();
             }
-            catch
+            catch (Exception ex)
             {
                 if (internalTx)
-                tx.Rollback();
+                {
+                    tx.Rollback();
+                }
                 throw;
             }
         }

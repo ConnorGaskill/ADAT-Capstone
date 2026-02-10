@@ -1,5 +1,6 @@
 ﻿using ADAT_Project;
 using ADAT_Project.Models;
+using ADAT_Project.Utilities;
 
 string connectionString =
                 "Server=(localDB)\\MSSQLLocalDB;Database=mtg_database;" +
@@ -9,11 +10,41 @@ string connectionString =
 //TestGetById(connectionString);
 
 //TestGetAllFull(connectionString);
-
 //TestAdd(connectionString);
 //TestDelete(connectionString);
 //TestUpdate(connectionString);
-TestAddWithAudit(connectionString);
+//TestAddWithAudit(connectionString);
+TimeTestAdd(connectionString);
+
+static void TimeTestAdd(string conn)
+{
+    CardRepository repo = new CardRepository(conn);
+
+    repo.ResetCardTable();
+
+    Card? card = CreateTestCard();
+
+    Console.WriteLine("Testing adding a card inefficiently...");
+
+    TimeSpan inefficientAdd = TimeUtilities.RunWithStopwatch(() => repo.InefficientAdd(card));
+
+    Console.WriteLine($"Card added inefficiently in {inefficientAdd} seconds\n");
+
+    repo.ResetCardTable();
+
+    Console.WriteLine("Testing adding a card efficiently...");
+
+    TimeSpan efficientAdd = TimeUtilities.RunWithStopwatch(() => repo.Add(card));
+
+    Console.WriteLine($"Card added efficiently in {efficientAdd} seconds\n");
+
+    Console.WriteLine(TimeUtilities.GetFastest(
+        new KeyValuePair<string, TimeSpan>("inefficient add", inefficientAdd), 
+        new KeyValuePair<string, TimeSpan>("efficient add", efficientAdd))
+        );
+
+    repo.ResetCardTable();
+}
 
 static void TestAdd(string conn)
 {
