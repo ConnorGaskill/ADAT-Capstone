@@ -6,14 +6,14 @@ string connectionString =
                 "Server=(localDB)\\MSSQLLocalDB;Database=mtg_database;" +
                 "Trusted_Connection=True;TrustServerCertificate=True;";
 
-//TestGetAll(connectionString);
-//TestGetById(connectionString);
+TestGetAll(connectionString);
+TestGetById(connectionString);
 
-//TestGetAllFull(connectionString);
-//TestAdd(connectionString);
-//TestDelete(connectionString);
-//TestUpdate(connectionString);
-//TestAddWithAudit(connectionString);
+TestGetAllFull(connectionString);
+TestAdd(connectionString);
+TestDelete(connectionString);
+TestUpdate(connectionString);
+TestAddWithAudit(connectionString);
 TimeTestAdd(connectionString);
 
 static void TimeTestAdd(string conn)
@@ -56,7 +56,7 @@ static void TestAdd(string conn)
 
     Console.WriteLine("Adding Valid card...");
 
-    Console.WriteLine($" ---Success---\nAdded Card:\n {repo.GetById(cardId).ToFullDetailString()}");
+    Console.WriteLine($" ---Success---\nAdded Card:\n {repo.GetById(cardId)!.ToFullDetailString()}");
 
     cardId = repo.Add(card);
 
@@ -123,7 +123,7 @@ static void TestDelete(string conn)
 {
     CardRepository repo = new CardRepository(conn);
 
-    Card card = repo.GetById(1);
+    Card card = repo.GetById(1)!;
 
     Console.WriteLine("Testing Deleting an existing card...");
 
@@ -157,7 +157,7 @@ static void TestUpdate(string conn)
 {
     CardRepository repo = new CardRepository(conn);
 
-    Card card = repo.GetById(1);
+    Card card = repo.GetById(1)!;
 
     Console.WriteLine("Testing Update...");
 
@@ -168,7 +168,7 @@ static void TestUpdate(string conn)
 
     repo.Update(card);
 
-    card = repo.GetById(card.CardId);
+    card = repo.GetById(card.CardId)!;
 
     Console.WriteLine($"Card after: {card.ToFullDetailString()}");
 
@@ -196,7 +196,6 @@ static void TestAddWithAudit(string conn)
         Console.WriteLine("Testing with valid Card...");
         int cardId = cardRepo.AddWithAudit(card);
 
-        // Verify card exists
         var insertedCard = cardRepo.GetById(cardId);
         Console.WriteLine(insertedCard != null
             ? $"Card inserted: {insertedCard.Name}"
@@ -209,7 +208,6 @@ static void TestAddWithAudit(string conn)
 
         Console.WriteLine("\nTesting with invalid Card");
 
-        // Force failure by creating invalid card (Name = null)
         Card invalidCard = new Card
         {
             Name = null,
@@ -228,7 +226,6 @@ static void TestAddWithAudit(string conn)
             Console.WriteLine("AddWithAudit failed as expected for invalid card.");
         }
 
-        // Ensure no extra audit was created
         int auditCount = auditRepo.GetAll().Count(a => a.EntityType == "Card");
         Console.WriteLine(auditCount == 1
             ? "No audit log created for failed insert (as expected)."

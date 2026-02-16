@@ -4,14 +4,27 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ADAT_Project
 {
     public class CardRepository : IDataAccess<Card>
     {
         private readonly string _connectionString;
+
+        private Card ReadCard(SqlDataReader reader)
+        {
+            return new Card
+            {
+                CardId = reader.GetInt32(0),
+                Name = reader.GetString(1),
+                ManaCost = reader.IsDBNull(2) ? null : reader.GetString(2),
+                OracleText = reader.IsDBNull(3) ? null : reader.GetString(3),
+                Power = reader.IsDBNull(4) ? null : reader.GetString(4),
+                Toughness = reader.IsDBNull(5) ? null : reader.GetString(5),
+                Rarity = reader.IsDBNull(6) ? null : reader.GetString(6),
+                IsLegendary = reader.GetBoolean(7)
+            };
+        }
 
         private T ExecuteInTransaction<T>(Func<SqlConnection, SqlTransaction, T> work)
         {
@@ -26,17 +39,24 @@ namespace ADAT_Project
                 tx.Commit();
                 return result;
             }
-            catch (Exception ex)
+            catch (SqlException sqlEx)
             {
                 tx.Rollback();
-                throw ex;
+                throw new Exception("Database operation failed.", sqlEx);
+            }
+            catch (Exception)
+            {
+                tx.Rollback();
+                throw;
             }
         }
 
         private int InefficientAddCardLogic(Card card, SqlConnection conn, SqlTransaction tx)
         {
-            // 1. Insert card if not exists
-            using (var cmd = new SqlCommand(@"
+            try
+            {
+                // 1. Insert card if not exists
+                using (var cmd = new SqlCommand(@"
         INSERT INTO dbo.cards
             (name, mana_cost, oracle_text, power, toughness, rarity, is_legendary)
         SELECT @Name, @ManaCost, @OracleText, @Power, @Toughness, @Rarity, @IsLegendary
@@ -46,48 +66,48 @@ namespace ADAT_Project
             WHERE name = @Name
               AND ISNULL(oracle_text, '') = ISNULL(@OracleText, '')
         );", conn, tx))
-            {
-                cmd.Parameters.AddWithValue("@Name", card.Name);
-                cmd.Parameters.AddWithValue("@ManaCost", (object?)card.ManaCost ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@OracleText", (object?)card.OracleText ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@Power", (object?)card.Power ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@Toughness", (object?)card.Toughness ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@Rarity", (object?)card.Rarity ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@IsLegendary", card.IsLegendary);
-                cmd.ExecuteNonQuery();
-            }
+                {
+                    cmd.Parameters.AddWithValue("@Name", card.Name);
+                    cmd.Parameters.AddWithValue("@ManaCost", (object?)card.ManaCost ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@OracleText", (object?)card.OracleText ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@Power", (object?)card.Power ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@Toughness", (object?)card.Toughness ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@Rarity", (object?)card.Rarity ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@IsLegendary", card.IsLegendary);
+                    cmd.ExecuteNonQuery();
+                }
 
-            // 2. Get CardId
-            int cardId;
-            using (var cmd = new SqlCommand(@"
+                // 2. Get CardId
+                int cardId;
+                using (var cmd = new SqlCommand(@"
         SELECT card_id
         FROM dbo.cards
         WHERE name = @Name
           AND ISNULL(oracle_text, '') = ISNULL(@OracleText, '');", conn, tx))
-            {
-                cmd.Parameters.AddWithValue("@Name", card.Name);
-                cmd.Parameters.AddWithValue("@OracleText", (object?)card.OracleText ?? DBNull.Value);
-                cardId = (int)cmd.ExecuteScalar();
-            }
+                {
+                    cmd.Parameters.AddWithValue("@Name", card.Name);
+                    cmd.Parameters.AddWithValue("@OracleText", (object?)card.OracleText ?? DBNull.Value);
+                    cardId = (int)cmd.ExecuteScalar();
+                }
 
-            // 3. Insert Colors
-            foreach (var color in card.Colors)
-            {
-                using var insertColor = new SqlCommand(@"
+                // 3. Insert Colors
+                foreach (var color in card.Colors)
+                {
+                    using var insertColor = new SqlCommand(@"
             INSERT INTO dbo.colors (name)
             SELECT @Name
             WHERE NOT EXISTS (
                 SELECT 1 FROM dbo.colors WHERE name = @Name
             );", conn, tx);
-                insertColor.Parameters.AddWithValue("@Name", color.Name);
-                insertColor.ExecuteNonQuery();
+                    insertColor.Parameters.AddWithValue("@Name", color.Name);
+                    insertColor.ExecuteNonQuery();
 
-                using var getColorId = new SqlCommand(
-                    "SELECT color_id FROM dbo.colors WHERE name = @Name;", conn, tx);
-                getColorId.Parameters.AddWithValue("@Name", color.Name);
-                int colorId = (int)getColorId.ExecuteScalar();
+                    using var getColorId = new SqlCommand(
+                        "SELECT color_id FROM dbo.colors WHERE name = @Name;", conn, tx);
+                    getColorId.Parameters.AddWithValue("@Name", color.Name);
+                    int colorId = (int)getColorId.ExecuteScalar();
 
-                using var link = new SqlCommand(@"
+                    using var link = new SqlCommand(@"
             INSERT INTO dbo.card_colors (card_id, color_id)
             SELECT @CardId, @ColorId
             WHERE NOT EXISTS (
@@ -95,29 +115,29 @@ namespace ADAT_Project
                 FROM dbo.card_colors
                 WHERE card_id = @CardId AND color_id = @ColorId
             );", conn, tx);
-                link.Parameters.AddWithValue("@CardId", cardId);
-                link.Parameters.AddWithValue("@ColorId", colorId);
-                link.ExecuteNonQuery();
-            }
+                    link.Parameters.AddWithValue("@CardId", cardId);
+                    link.Parameters.AddWithValue("@ColorId", colorId);
+                    link.ExecuteNonQuery();
+                }
 
-            // 4. Insert Types
-            foreach (var type in card.Types)
-            {
-                using var insertType = new SqlCommand(@"
+                // 4. Insert Types
+                foreach (var type in card.Types)
+                {
+                    using var insertType = new SqlCommand(@"
             INSERT INTO dbo.types (name)
             SELECT @Name
             WHERE NOT EXISTS (
                 SELECT 1 FROM dbo.types WHERE name = @Name
             );", conn, tx);
-                insertType.Parameters.AddWithValue("@Name", type);
-                insertType.ExecuteNonQuery();
+                    insertType.Parameters.AddWithValue("@Name", type);
+                    insertType.ExecuteNonQuery();
 
-                using var getTypeId = new SqlCommand(
-                    "SELECT type_id FROM dbo.types WHERE name = @Name;", conn, tx);
-                getTypeId.Parameters.AddWithValue("@Name", type);
-                int typeId = (int)getTypeId.ExecuteScalar();
+                    using var getTypeId = new SqlCommand(
+                        "SELECT type_id FROM dbo.types WHERE name = @Name;", conn, tx);
+                    getTypeId.Parameters.AddWithValue("@Name", type);
+                    int typeId = (int)getTypeId.ExecuteScalar();
 
-                using var link = new SqlCommand(@"
+                    using var link = new SqlCommand(@"
             INSERT INTO dbo.card_types (card_id, type_id)
             SELECT @CardId, @TypeId
             WHERE NOT EXISTS (
@@ -125,30 +145,30 @@ namespace ADAT_Project
                 FROM dbo.card_types
                 WHERE card_id = @CardId AND type_id = @TypeId
             );", conn, tx);
-                link.Parameters.AddWithValue("@CardId", cardId);
-                link.Parameters.AddWithValue("@TypeId", typeId);
-                link.ExecuteNonQuery();
-            }
+                    link.Parameters.AddWithValue("@CardId", cardId);
+                    link.Parameters.AddWithValue("@TypeId", typeId);
+                    link.ExecuteNonQuery();
+                }
 
-            // 5. Insert Printings + Sets
-            foreach (var printing in card.Printings)
-            {
-                using var insertSet = new SqlCommand(@"
+                // 5. Insert Printings + Sets
+                foreach (var printing in card.Printings)
+                {
+                    using var insertSet = new SqlCommand(@"
             INSERT INTO dbo.sets (code, name)
             SELECT @Code, @Name
             WHERE NOT EXISTS (
                 SELECT 1 FROM dbo.sets WHERE code = @Code
             );", conn, tx);
-                insertSet.Parameters.AddWithValue("@Code", printing.Set.Code);
-                insertSet.Parameters.AddWithValue("@Name", printing.Set.Name);
-                insertSet.ExecuteNonQuery();
+                    insertSet.Parameters.AddWithValue("@Code", printing.Set.Code);
+                    insertSet.Parameters.AddWithValue("@Name", printing.Set.Name);
+                    insertSet.ExecuteNonQuery();
 
-                using var getSetId = new SqlCommand(
-                    "SELECT set_id FROM dbo.sets WHERE code = @Code;", conn, tx);
-                getSetId.Parameters.AddWithValue("@Code", printing.Set.Code);
-                int setId = (int)getSetId.ExecuteScalar();
+                    using var getSetId = new SqlCommand(
+                        "SELECT set_id FROM dbo.sets WHERE code = @Code;", conn, tx);
+                    getSetId.Parameters.AddWithValue("@Code", printing.Set.Code);
+                    int setId = (int)getSetId.ExecuteScalar();
 
-                using var insertPrinting = new SqlCommand(@"
+                    using var insertPrinting = new SqlCommand(@"
             INSERT INTO dbo.card_printings (card_id, set_id, collector_number)
             SELECT @CardId, @SetId, @CollectorNumber
             WHERE NOT EXISTS (
@@ -158,138 +178,185 @@ namespace ADAT_Project
                   AND set_id = @SetId
                   AND collector_number = @CollectorNumber
             );", conn, tx);
-                insertPrinting.Parameters.AddWithValue("@CardId", cardId);
-                insertPrinting.Parameters.AddWithValue("@SetId", setId);
-                insertPrinting.Parameters.AddWithValue("@CollectorNumber", printing.CollectorNumber);
-                insertPrinting.ExecuteNonQuery();
-            }
+                    insertPrinting.Parameters.AddWithValue("@CardId", cardId);
+                    insertPrinting.Parameters.AddWithValue("@SetId", setId);
+                    insertPrinting.Parameters.AddWithValue("@CollectorNumber", printing.CollectorNumber);
+                    insertPrinting.ExecuteNonQuery();
+                }
 
-            return cardId;
+                return cardId;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to add card '{card.Name}'", ex);
+            }
         }
+
         private int AddCardLogic(Card card, SqlConnection conn, SqlTransaction tx)
         {
-            int cardId;
-
-            // 1. Get or insert card
-            using (var cmd = new SqlCommand("GetCardIdOrInsert", conn, tx))
+            try
             {
-                cmd.CommandType = CommandType.StoredProcedure;
+                int cardId;
 
-                cmd.Parameters.AddWithValue("@Name", card.Name);
-                cmd.Parameters.AddWithValue("@ManaCost", (object?)card.ManaCost ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@OracleText", (object?)card.OracleText ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@Power", (object?)card.Power ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@Toughness", (object?)card.Toughness ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@Rarity", (object?)card.Rarity ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@IsLegendary", card.IsLegendary);
-
-                var outputId = new SqlParameter("@CardId", SqlDbType.Int)
-                {
-                    Direction = ParameterDirection.Output
-                };
-                cmd.Parameters.Add(outputId);
-
-                cmd.ExecuteNonQuery();
-                cardId = (int)outputId.Value;
-            }
-
-            // 2. Link colors
-            if (card.Colors.Count > 0)
-            {
-                string colorNames = string.Join(",", card.Colors.Select(c => c.Name));
-
-                using var cmd = new SqlCommand("LinkCardColors", conn, tx);
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.Parameters.AddWithValue("@CardId", cardId);
-                cmd.Parameters.AddWithValue("@ColorNames", colorNames);
-
-                cmd.ExecuteNonQuery();
-            }
-
-            // 3`[. Insert printings + sets
-            foreach (var printing in card.Printings)
-            {
-                int setId;
-
-                // Get or insert set
-                using (var cmd = new SqlCommand("GetSetIdOrInsert", conn, tx))
+                // 1. Get or insert card
+                using (var cmd = new SqlCommand("GetCardIdOrInsert", conn, tx))
                 {
                     cmd.CommandType = CommandType.StoredProcedure;
-                    cmd.Parameters.AddWithValue("@Code", printing.Set.Code);
-                    cmd.Parameters.AddWithValue("@Name", printing.Set.Name);
 
-                    var outputSetId = new SqlParameter("@SetId", SqlDbType.Int)
+                    cmd.Parameters.AddWithValue("@Name", card.Name);
+                    cmd.Parameters.AddWithValue("@ManaCost", (object?)card.ManaCost ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@OracleText", (object?)card.OracleText ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@Power", (object?)card.Power ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@Toughness", (object?)card.Toughness ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@Rarity", (object?)card.Rarity ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@IsLegendary", card.IsLegendary);
+
+                    var outputId = new SqlParameter("@CardId", SqlDbType.Int)
                     {
                         Direction = ParameterDirection.Output
                     };
-                    cmd.Parameters.Add(outputSetId);
+                    cmd.Parameters.Add(outputId);
 
                     cmd.ExecuteNonQuery();
-                    setId = (int)outputSetId.Value;
+                    cardId = (int)outputId.Value;
                 }
 
-                // Link printing
-                using (var cmd = new SqlCommand("LinkCardPrinting", conn, tx))
+                // 2. Link colors
+                if (card.Colors.Count > 0)
                 {
+                    string colorNames = string.Join(",", card.Colors.Select(c => c.Name));
+
+                    using var cmd = new SqlCommand("LinkCardColors", conn, tx);
                     cmd.CommandType = CommandType.StoredProcedure;
                     cmd.Parameters.AddWithValue("@CardId", cardId);
-                    cmd.Parameters.AddWithValue("@SetId", setId);
-                    cmd.Parameters.AddWithValue("@CollectorNumber", printing.CollectorNumber);
+                    cmd.Parameters.AddWithValue("@ColorNames", colorNames);
 
                     cmd.ExecuteNonQuery();
                 }
-            }
 
-            return cardId;
+                // 3`[. Insert printings + sets
+                foreach (var printing in card.Printings)
+                {
+                    int setId;
+
+                    // Get or insert set
+                    using (var cmd = new SqlCommand("GetSetIdOrInsert", conn, tx))
+                    {
+                        cmd.CommandType = CommandType.StoredProcedure;
+                        cmd.Parameters.AddWithValue("@Code", printing.Set.Code);
+                        cmd.Parameters.AddWithValue("@Name", printing.Set.Name);
+
+                        var outputSetId = new SqlParameter("@SetId", SqlDbType.Int)
+                        {
+                            Direction = ParameterDirection.Output
+                        };
+                        cmd.Parameters.Add(outputSetId);
+
+                        cmd.ExecuteNonQuery();
+                        setId = (int)outputSetId.Value;
+                    }
+
+                    // Link printing
+                    using (var cmd = new SqlCommand("LinkCardPrinting", conn, tx))
+                    {
+                        cmd.CommandType = CommandType.StoredProcedure;
+                        cmd.Parameters.AddWithValue("@CardId", cardId);
+                        cmd.Parameters.AddWithValue("@SetId", setId);
+                        cmd.Parameters.AddWithValue("@CollectorNumber", printing.CollectorNumber);
+
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+
+                return cardId;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to add card '{card.Name}' via stored procedures", ex);
+            }
         }
 
         public CardRepository(string connectionString)
         {
             _connectionString = connectionString;
         }
+
         public int Add(Card card)
         {
-            return ExecuteInTransaction((conn, tx) => AddCardLogic(card, conn, tx));
+            try
+            {
+                return ExecuteInTransaction((conn, tx) => AddCardLogic(card, conn, tx));
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Add operation failed for card '{card.Name}'", ex);
+            }
         }
 
         public int InefficientAdd(Card card)
         {
-            return ExecuteInTransaction((conn, tx) => InefficientAddCardLogic(card, conn, tx));
+            try
+            {
+                return ExecuteInTransaction((conn, tx) => InefficientAddCardLogic(card, conn, tx));
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"InefficientAdd operation failed for card '{card.Name}'", ex);
+            }
         }
+
         public int AddWithAudit(Card card)
         {
-            return ExecuteInTransaction((conn, tx) =>
+            try
             {
-                int cardId = AddCardLogic(card, conn, tx);
+                return ExecuteInTransaction((conn, tx) =>
+                {
+                    int cardId = AddCardLogic(card, conn, tx);
 
-                var auditRepo = new AuditRepository(_connectionString);
-                auditRepo.InsertAuditRecord(cardId, "Card", "Insert", conn, tx);
+                    var auditRepo = new AuditRepository(_connectionString);
+                    auditRepo.InsertAuditRecord(cardId, "Card", "Insert", conn, tx);
 
-                return cardId;
-            });
+                    return cardId;
+                });
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"AddWithAudit failed for card '{card.Name}'", ex);
+            }
         }
+
         public bool Delete(int id)
         {
-            using SqlConnection conn = new SqlConnection(_connectionString);
-            using SqlCommand cmd = new SqlCommand(
-                @"DELETE FROM dbo.Cards
+            try
+            {
+                using SqlConnection conn = new SqlConnection(_connectionString);
+                using SqlCommand cmd = new SqlCommand(
+                    @"DELETE FROM dbo.Cards
             WHERE card_id = @CardId;", conn);
 
-            cmd.Parameters.Add("@CardId", SqlDbType.Int).Value = id;
+                cmd.Parameters.Add("@CardId", SqlDbType.Int).Value = id;
 
-            conn.Open();
-            return cmd.ExecuteNonQuery() == 1;
+                conn.Open();
+                return cmd.ExecuteNonQuery() == 1;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to delete card with ID {id}", ex);
+            }
         }
+
         public IEnumerable<Card> GetAll()
         {
-            List<Card> results = new List<Card>();
-
-            using (SqlConnection conn = new SqlConnection(_connectionString))
+            try
             {
-                conn.Open();
+                List<Card> results = new List<Card>();
 
-                using (SqlCommand cmd = new SqlCommand(
-                    @"SELECT
+                using (SqlConnection conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+
+                    using (SqlCommand cmd = new SqlCommand(
+                        @"SELECT
                 card_id,
                 name,
                 mana_cost,
@@ -299,81 +366,76 @@ namespace ADAT_Project
                 rarity,
                 is_legendary
               FROM dbo.cards;", conn))
-                {
-                    using (SqlDataReader reader = cmd.ExecuteReader())
                     {
-                        while (reader.Read())
+                        using (SqlDataReader reader = cmd.ExecuteReader())
                         {
-                            Card c = new Card
+                            while (reader.Read())
                             {
-                                CardId = reader.GetInt32(0),
-                                Name = reader.GetString(1),
-                                ManaCost = reader.IsDBNull(2) ? null : reader.GetString(2),
-                                OracleText = reader.IsDBNull(3) ? null : reader.GetString(3),
-                                Power = reader.IsDBNull(4) ? null : reader.GetString(4),
-                                Toughness = reader.IsDBNull(5) ? null : reader.GetString(5),
-                                Rarity = reader.IsDBNull(6) ? null : reader.GetString(6),
-                                IsLegendary = reader.GetBoolean(7)
-                            };
-
-                            results.Add(c);
+                                Card c = ReadCard(reader);
+                                results.Add(c);
+                            }
                         }
                     }
                 }
-            }
 
-            return results;
+                return results;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Failed to retrieve all cards", ex);
+            }
         }
+
         public IEnumerable<Card> GetAllFull()
         {
-            var cards = new List<Card>();
-
-            using var conn = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand("GetAllCardsFull", conn)
+            try
             {
-                CommandType = CommandType.StoredProcedure
-            };
+                var cards = new List<Card>();
 
-            conn.Open();
-            using var reader = cmd.ExecuteReader();
-
-            while (reader.Read())
-            {
-                var card = new Card
+                using var conn = new SqlConnection(_connectionString);
+                using var cmd = new SqlCommand("GetAllCardsFull", conn)
                 {
-                    CardId = reader.GetInt32(reader.GetOrdinal("card_id")),
-                    Name = reader.GetString(reader.GetOrdinal("name")),
-                    ManaCost = reader["mana_cost"] as string,
-                    OracleText = reader["oracle_text"] as string,
-                    Power = reader["power"] as string,
-                    Toughness = reader["toughness"] as string,
-                    Rarity = reader["rarity"] as string,
-                    IsLegendary = reader.GetBoolean(reader.GetOrdinal("is_legendary"))
+                    CommandType = CommandType.StoredProcedure
                 };
 
-                card.Colors = (reader["colors"] as string)?
-                    .Split(", ").Select(c => new Color { Name = c }).ToList()
-                    ?? new();
+                conn.Open();
+                using var reader = cmd.ExecuteReader();
 
-                card.Types = (reader["types"] as string)?
-                    .Split(", ").ToList()
-                    ?? new();
+                while (reader.Read())
+                {
+                    var card = ReadCard(reader);
 
-                cards.Add(card);
+                    card.Colors = (reader["colors"] as string)?
+                        .Split(", ").Select(c => new Color { Name = c }).ToList()
+                        ?? new();
+
+                    card.Types = (reader["types"] as string)?
+                        .Split(", ").ToList()
+                        ?? new();
+
+                    cards.Add(card);
+                }
+
+                return cards;
             }
-
-            return cards;
+            catch (Exception ex)
+            {
+                throw new Exception("Failed to retrieve full card data", ex);
+            }
         }
+
         public Card? GetById(int id)
         {
-            Card? result = null;
-
-            using (SqlConnection conn = new SqlConnection(_connectionString))
+            try
             {
-                conn.Open();
+                Card? result = null;
 
-                using (SqlCommand cmd = new SqlCommand(
-                    @"SELECT card_id,
+                using (SqlConnection conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+
+                    using (SqlCommand cmd = new SqlCommand(
+                        @"SELECT card_id,
                      name,
                      mana_cost,
                      oracle_text,
@@ -383,36 +445,34 @@ namespace ADAT_Project
                      is_legendary
               FROM dbo.cards
               WHERE card_id = @Id;", conn))
-                {
-                    cmd.Parameters.AddWithValue("@Id", id);
-
-                    using (SqlDataReader reader = cmd.ExecuteReader())
                     {
-                        if (reader.Read())
+                        cmd.Parameters.AddWithValue("@Id", id);
+
+                        using (SqlDataReader reader = cmd.ExecuteReader())
                         {
-                            result = new Card
+                            if (reader.Read())
                             {
-                                CardId = reader.GetInt32(0),
-                                Name = reader.GetString(1),
-                                ManaCost = reader.IsDBNull(2) ? null : reader.GetString(2),
-                                OracleText = reader.IsDBNull(3) ? null : reader.GetString(3),
-                                Power = reader.IsDBNull(4) ? null : reader.GetString(4),
-                                Toughness = reader.IsDBNull(5) ? null : reader.GetString(5),
-                                Rarity = reader.IsDBNull(6) ? null : reader.GetString(6),
-                                IsLegendary = reader.GetBoolean(7)
-                            };
+                                result = ReadCard(reader);
+                            }
                         }
                     }
                 }
-            }
 
-            return result;
+                return result;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to retrieve card with ID {id}", ex);
+            }
         }
+
         public bool Update(Card card)
         {
-            using SqlConnection conn = new SqlConnection(_connectionString);
-            using SqlCommand cmd = new SqlCommand(
-            @"UPDATE dbo.cards
+            try
+            {
+                using SqlConnection conn = new SqlConnection(_connectionString);
+                using SqlCommand cmd = new SqlCommand(
+                @"UPDATE dbo.cards
          SET
           name = @Name,
           mana_cost = @ManaCost,
@@ -422,30 +482,43 @@ namespace ADAT_Project
           is_legendary = @IsLegendary
          WHERE card_id = @CardId;", conn);
 
-            cmd.Parameters.Add("@CardId", SqlDbType.Int).Value = card.CardId;
-            cmd.Parameters.Add("@Name", SqlDbType.VarChar, 255).Value = card.Name;
-            cmd.Parameters.Add("@ManaCost", SqlDbType.VarChar, 50).Value =
-                (object?)card.ManaCost ?? DBNull.Value;
-            cmd.Parameters.Add("@Power", SqlDbType.VarChar, 10).Value =
-                (object?)card.Power ?? DBNull.Value;
-            cmd.Parameters.Add("@Toughness", SqlDbType.VarChar, 10).Value =
-                (object?)card.Toughness ?? DBNull.Value;
-            cmd.Parameters.Add("@Rarity", SqlDbType.VarChar, 20).Value =
-                (object?)card.Rarity ?? DBNull.Value;
-            cmd.Parameters.Add("@IsLegendary", SqlDbType.Bit).Value = card.IsLegendary;
+                cmd.Parameters.Add("@CardId", SqlDbType.Int).Value = card.CardId;
+                cmd.Parameters.Add("@Name", SqlDbType.VarChar).Value = card.Name;
+                cmd.Parameters.Add("@ManaCost", SqlDbType.VarChar).Value =
+                    (object?)card.ManaCost ?? DBNull.Value;
+                cmd.Parameters.Add("@Power", SqlDbType.VarChar).Value =
+                    (object?)card.Power ?? DBNull.Value;
+                cmd.Parameters.Add("@Toughness", SqlDbType.VarChar).Value =
+                    (object?)card.Toughness ?? DBNull.Value;
+                cmd.Parameters.Add("@Rarity", SqlDbType.VarChar).Value =
+                    (object?)card.Rarity ?? DBNull.Value;
+                cmd.Parameters.Add("@IsLegendary", SqlDbType.Bit).Value = card.IsLegendary;
 
-            conn.Open();
-            return cmd.ExecuteNonQuery() == 1;
+                conn.Open();
+                return cmd.ExecuteNonQuery() == 1;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to update card '{card.Name}'", ex);
+            }
         }
+
         public void ResetCardTable()
         {
-            using SqlConnection conn = new SqlConnection(_connectionString);
-            using SqlCommand cmd = new SqlCommand("ResetCardTable", conn);
+            try
+            {
+                using SqlConnection conn = new SqlConnection(_connectionString);
+                using SqlCommand cmd = new SqlCommand("ResetCardTable", conn);
 
-            cmd.CommandType = CommandType.StoredProcedure;
+                cmd.CommandType = CommandType.StoredProcedure;
 
-            conn.Open();
-            cmd.ExecuteNonQuery();
+                conn.Open();
+                cmd.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Failed to reset card table", ex);
+            }
         }
     }
 }

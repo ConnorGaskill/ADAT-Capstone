@@ -1,0 +1,258 @@
+[Testing GetAll()]
+
+Sol Ring [1] (Uncommon)
+Commander's Sphere [3] (Common)
+Cultivate [2G] (Common)
+Crackling Drake [UURR] (Uncommon)
+Command Tower [-] (Common)
+Coiling Oracle [GU] (Common)
+Mind Stone [2] (Uncommon)
+Gilded Lotus [5] (Rare)
+Arcane Signet [2] (Uncommon)
+Essence Warden [G] (Uncommon)
+Atraxa, Praetors' Voice [1GWUB] (Mythic) *
+Muldrotha, the Gravetide [3BGU] (Mythic) *
+Rhystic Study [2U] (Common)
+Smothering Tithe [3W] (Rare)
+Dockside Extortionist [1R] (Rare)
+Solemn Simulacrum [4] (Rare)
+Avenger of Zendikar [5GG] (Mythic)
+Teferi, Temporal Archmage [4UU] (Mythic) *
+Kozilek, the Great Distortion [8CC] (Mythic) *
+Cyclonic Rift [1U] (Rare)
+
+[Testing GetById with valid id (1)]
+
+Sol Ring [1] (Uncommon)
+
+[Testing GetById with invalid id (-1)]
+
+Card with Id -1 does not exist
+Arcane Signet
+Mana Cost: 2
+Rarity: Uncommon
+Type: Artifact
+
+Text:
+{T}: Add one mana of any color in your commander's color identity.
+
+Atraxa, Praetors' Voice (Legendary)
+Mana Cost: 1GWUB
+Rarity: Mythic
+Type: Creature
+P/T: 4/4
+
+Text:
+Flying, vigilance, deathtouch, lifelink. At the beginning of your end step, proliferate.
+
+Avenger of Zendikar
+Mana Cost: 5GG
+Rarity: Mythic
+Type: Creature
+P/T: 5/5
+
+Text:
+When Avenger of Zendikar enters the battlefield, create a 0/1 green Plant creature token for each land you control. Landfall - Whenever a land enters the battlefield under your control, you may put a +1/+1 counter on each Plant creature you control.
+
+Coiling Oracle
+Mana Cost: GU
+Rarity: Common
+Type: Creature
+P/T: 1/1
+
+Text:
+When Coiling Oracle enters the battlefield, reveal the top card of your library. If it's a land card, put it onto the battlefield. Otherwise, put that card into your hand.
+
+Command Tower
+Mana Cost: -
+Rarity: Common
+Type: Land
+
+Text:
+{T}: Add one mana of any color in your commander's color identity.
+
+Commander's Sphere
+Mana Cost: 3
+Rarity: Common
+Type: Artifact
+
+Text:
+{T}: Add one mana of any color in your commander's color identity. Sacrifice: Draw a card.
+
+Crackling Drake
+Mana Cost: UURR
+Rarity: Uncommon
+Type: Creature
+P/T: X/4
+
+Text:
+Flying. Crackling Drake's power is equal to the number of instant and sorcery cards you own in exile and in your graveyard. When Crackling Drake enters the battlefield, draw a card.
+
+Cultivate
+Mana Cost: 2G
+Rarity: Common
+Type: Sorcery
+
+Text:
+Search your library for up to two basic land cards, put one onto the battlefield tapped and the other into your hand. Then shuffle.
+
+Cyclonic Rift
+Mana Cost: 1U
+Rarity: Rare
+Type: Instant
+
+Text:
+Return target nonland permanent you don't control to its owner's hand. Overload {6}{U}.
+
+Dockside Extortionist
+Mana Cost: 1R
+Rarity: Rare
+Type: Creature
+P/T: 1/2
+
+Text:
+When Dockside Extortionist enters the battlefield, create X Treasure tokens, where X is the number of artifacts and enchantments your opponents control.
+
+Essence Warden
+Mana Cost: G
+Rarity: Uncommon
+Type: Creature
+P/T: 1/1
+
+Text:
+Whenever another creature enters the battlefield, you gain 1 life.
+
+Gilded Lotus
+Mana Cost: 5
+Rarity: Rare
+Type: Artifact
+
+Text:
+{T}: Add three mana of any one color.
+
+Kozilek, the Great Distortion (Legendary)
+Mana Cost: 8CC
+Rarity: Mythic
+Type: Creature
+P/T: 12/12
+
+Text:
+When you cast this spell, if you have fewer than seven cards in hand, draw cards equal to the difference. Menace. Discard a card with converted mana cost X: Counter target spell with converted mana cost X.
+
+Mind Stone
+Mana Cost: 2
+Rarity: Uncommon
+Type: Artifact
+
+Text:
+{T}: Add {C}. {1}, {T}, Sacrifice Mind Stone: Draw a card.
+
+Muldrotha, the Gravetide (Legendary)
+Mana Cost: 3BGU
+Rarity: Mythic
+Type: Creature
+P/T: 6/6
+
+Text:
+During each of your turns, you may play a land and cast a permanent spell of each permanent type from your graveyard.
+
+Rhystic Study
+Mana Cost: 2U
+Rarity: Common
+Type: Enchantment
+
+Text:
+Whenever an opponent casts a spell, you may draw a card unless that player pays {1}.
+
+Smothering Tithe
+Mana Cost: 3W
+Rarity: Rare
+Type: Enchantment
+
+Text:
+Whenever an opponent draws a card, that player may pay {2}. If the player doesn't, you create a Treasure token.
+
+Sol Ring
+Mana Cost: 1
+Rarity: Uncommon
+Type: Artifact
+
+Text:
+{T}: Add {C}{C}.
+
+Solemn Simulacrum
+Mana Cost: 4
+Rarity: Rare
+Type: Creature Artifact
+P/T: 2/2
+
+Text:
+When Solemn Simulacrum enters the battlefield, you may search your library for a basic land card, put that card onto the battlefield tapped, then shuffle. When Solemn Simulacrum dies, you may draw a card.
+
+Teferi, Temporal Archmage (Legendary)
+Mana Cost: 4UU
+Rarity: Mythic
+Type: Planeswalker
+
+Text:
++1: Look at the top two cards of your library. Put one into your hand and the other on the bottom of your library. -1: Untap up to four target permanents. -10: You get an emblem with "You may activate loyalty abilities of planeswalkers you control on any player's turn any time you could cast an instant."
+
+Adding Valid card...
+ ---Success---
+Added Card:
+ Lightning Bolt
+Mana Cost: R
+Rarity: Common
+
+Text:
+Lightning Bolt deals 3 damage to any target.
+
+Testing adding duplicate card...
+Success: Card was not duplicated on add
+Testing Deleting an existing card...
+--- Success---
+Card Deleted:
+Sol Ring
+Mana Cost: 1
+Rarity: Uncommon
+
+Text:
+{T}: Add {C}{C}.
+
+Testing Update...
+Card before: Sol Ring
+Mana Cost: 1
+Rarity: Uncommon
+
+Text:
+{T}: Add {C}{C}.
+
+Card after: Testing
+Mana Cost: Testing
+Rarity: Uncommon
+
+Text:
+{T}: Add {C}{C}.
+
+-- Success--
+Testing with valid Card...
+Card inserted: Lightning Bolt
+Audit log created successfully.
+
+Testing with invalid Card
+AddWithAudit failed as expected for invalid card.
+No audit log created for failed insert (as expected).
+
+Cleanup complete.
+Testing adding a card inefficiently...
+Card added inefficiently in 00:00:00.0383549 seconds
+
+Testing adding a card efficiently...
+Card added efficiently in 00:00:00.0029753 seconds
+
+Fastest: efficient add - 00:00:00.0029753
+efficient add was faster than inefficient add by 00:00:00.0353796
+
+C:\Users\gaski\source\repos\ADAT Project\ADAT Project\bin\Debug\net9.0\ADAT Project.exe (process 23508) exited with code 0 (0x0).
+To automatically close the console when debugging stops, enable Tools->Options->Debugging->Automatically close the console when debugging stops.
+Press any key to close this window . . .
