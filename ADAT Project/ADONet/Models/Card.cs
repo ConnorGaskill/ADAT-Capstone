@@ -1,4 +1,4 @@
-﻿using ADAT_Project.Models;
+﻿using ADAT_Project.ADONet.Models;
 using System.Text;
 
 public class Card

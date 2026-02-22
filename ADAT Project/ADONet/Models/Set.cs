@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ADAT_Project.Models
+namespace ADAT_Project.ADONet.Models
 {
     public class Set
     {

@@ -1,11 +1,11 @@
-﻿using ADAT_Project.Models;
+﻿using ADAT_Project.ADONet.Models;
 using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 
-namespace ADAT_Project
+namespace ADAT_Project.ADONet.Repositories
 {
     public class CardRepository : IDataAccess<Card>
     {
@@ -124,26 +124,26 @@ namespace ADAT_Project
                 foreach (var type in card.Types)
                 {
                     using var insertType = new SqlCommand(@"
-            INSERT INTO dbo.types (name)
+            INSERT INTO dbo.cardtypes (name)
             SELECT @Name
             WHERE NOT EXISTS (
-                SELECT 1 FROM dbo.types WHERE name = @Name
+                SELECT 1 FROM dbo.cardtypes WHERE name = @Name
             );", conn, tx);
                     insertType.Parameters.AddWithValue("@Name", type);
                     insertType.ExecuteNonQuery();
 
                     using var getTypeId = new SqlCommand(
-                        "SELECT type_id FROM dbo.types WHERE name = @Name;", conn, tx);
+                        "SELECT cardtype_id FROM dbo.cardtypes WHERE name = @Name;", conn, tx);
                     getTypeId.Parameters.AddWithValue("@Name", type);
                     int typeId = (int)getTypeId.ExecuteScalar();
 
                     using var link = new SqlCommand(@"
-            INSERT INTO dbo.card_types (card_id, type_id)
+            INSERT INTO dbo.card_cardtypes (card_id, cardtype_id)
             SELECT @CardId, @TypeId
             WHERE NOT EXISTS (
                 SELECT 1
-                FROM dbo.card_types
-                WHERE card_id = @CardId AND type_id = @TypeId
+                FROM dbo.card_cardtypes
+                WHERE card_id = @CardId AND cardtype_id = @TypeId
             );", conn, tx);
                     link.Parameters.AddWithValue("@CardId", cardId);
                     link.Parameters.AddWithValue("@TypeId", typeId);
