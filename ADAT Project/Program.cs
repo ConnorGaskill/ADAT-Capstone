@@ -1,26 +1,61 @@
-﻿using ADONet_Tools.ADONet.Models;
-using ADONet_Tools.ADONet.Repositories;
+﻿using ADAT_Project.DataAccess.EfCore;
+using ADAT_Project.DataAccess.EfCore.Context;
 using ADAT_Project.Utilities;
+using ADONet_Tools.ADONet.Models;
+using ADONet_Tools.ADONet.Repositories;
 string connectionString =
                 "Server=(localDB)\\MSSQLLocalDB;Database=mtg_database;" +
                 "Trusted_Connection=True;TrustServerCertificate=True;";
+using var context = new ProjectDbContext();
 
-//Scaffold - DbContext "Server=(localDB)\\\\MSSQLLocalDB;Database=mtg_database;Trusted_Connection=True;TrustServerCertificate=True;" Microsoft.EntityFrameworkCore.SqlServer `
-//  -OutputDir EfCore / Entities `
-//  -ContextDir EfCore / Context `
-//  -Context ProjectDbContext `
-//  -DataAnnotations
+//TestGetAll(connectionString);
+//TestGetById(connectionString);
 
-TestGetAll(connectionString);
-TestGetById(connectionString);
+//TestGetAllFull(connectionString);
+//TestAdd(connectionString);
+//TestDelete(connectionString);
+//TestUpdate(connectionString);
+//TestAddWithAudit(connectionString);
+//TimeTestAdd(connectionString);
 
-TestGetAllFull(connectionString);
-TestAdd(connectionString);
-TestDelete(connectionString);
-TestUpdate(connectionString);
-TestAddWithAudit(connectionString);
-TimeTestAdd(connectionString);
+TestEfGetAll(context);
+TestEfGetAllEfGetById(context);
 
+static void TestEfGetAll(ProjectDbContext context)
+{
+
+    var cardRepository = new CardEfRepository(context);
+
+    // Get all cards
+    var allCards = cardRepository.GetAll();
+
+    Console.WriteLine("All Cards:");
+    foreach (var card in allCards)
+    {
+        Console.WriteLine($"{card.CardId} - {card.Name}");
+    }
+
+    Console.WriteLine();
+}
+
+static void TestEfGetAllEfGetById(ProjectDbContext context) {
+
+    var cardRepository = new CardEfRepository(context);
+
+
+    var cardById = cardRepository.GetById(1);
+
+    if (cardById != null)
+    {
+        Console.WriteLine("Card with ID 1:");
+        Console.WriteLine($"{cardById.CardId} - {cardById.Name}");
+    }
+    else
+    {
+        Console.WriteLine("Card with ID 1 not found.");
+    }
+
+}
 static void TimeTestAdd(string conn)
 {
     CardRepository repo = new CardRepository(conn);
