@@ -1,11 +1,11 @@
-﻿using ADAT_Project.ADONet.Models;
+﻿using ADONet_Tools.ADONet.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ADAT_Project.ADONet.Repositories
+namespace ADONet_Tools.ADONet.Repositories
 {
     internal class PrintingRepository : IDataAccess<Printing>
     {

@@ -1,9 +1,9 @@
-﻿using ADAT_Project.ADONet.Models;
+﻿using ADONet_Tools.ADONet.Models;
 using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 
-namespace ADAT_Project.ADONet.Repositories
+namespace ADONet_Tools.ADONet.Repositories
 {
     public class AuditRepository
     {

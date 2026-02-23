@@ -1,9 +1,6 @@
-﻿using ADAT_Project.ADONet.Models;
-using ADAT_Project.ADONet.Repositories;
-using ADAT_Project.ADONet.Models;
+﻿using ADONet_Tools.ADONet.Models;
+using ADONet_Tools.ADONet.Repositories;
 using ADAT_Project.Utilities;
-using Microsoft.EntityFrameworkCore;
-
 string connectionString =
                 "Server=(localDB)\\MSSQLLocalDB;Database=mtg_database;" +
                 "Trusted_Connection=True;TrustServerCertificate=True;";

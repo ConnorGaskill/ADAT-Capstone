@@ -4,12 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ADAT_Project.ADONet.Models
+namespace ADONet_Tools.ADONet.Models
 {
-    public class Set
+    public class Color
     {
-        public int SetId { get; set; }
-        public string Code { get; set; } = null!;
+        public int ColorId { get; set; }
         public string Name { get; set; } = null!;
     }
 }
