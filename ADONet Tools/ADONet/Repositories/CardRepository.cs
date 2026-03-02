@@ -234,7 +234,7 @@ namespace ADONet_Tools.ADONet.Repositories
                     cmd.ExecuteNonQuery();
                 }
 
-                // 3`[. Insert printings + sets
+                // 3. Insert printings + sets
                 foreach (var printing in card.Printings)
                 {
                     int setId;
