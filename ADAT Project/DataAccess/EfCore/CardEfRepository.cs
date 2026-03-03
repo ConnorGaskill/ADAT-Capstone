@@ -31,8 +31,16 @@ namespace ADAT_Project.DataAccess.EfCore
 
         public int Add(Card entity)
         {
-            _context.Cards.Add(entity);
-            _context.SaveChanges();
+            try
+            {
+                _context.Cards.Add(entity);
+                _context.SaveChanges();
+            }
+            catch (Exception ex) { 
+
+                throw new Exception($"Add operation failed for card '{entity.Name}'", ex);
+            
+            }
             return entity.CardId;
         }
 
@@ -50,6 +58,18 @@ namespace ADAT_Project.DataAccess.EfCore
 
             _context.Cards.Remove(entity);
             return _context.SaveChanges() > 0;
+        }
+
+        public void ResetCardTable()
+        {
+            try
+            {
+                _context.Database.ExecuteSqlRaw("EXEC ResetCardTable");
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Failed to reset card table", ex);
+            }
         }
     }
 }

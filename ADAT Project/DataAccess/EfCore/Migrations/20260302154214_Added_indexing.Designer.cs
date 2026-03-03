@@ -4,6 +4,7 @@ using ADAT_Project.DataAccess.EfCore.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ADAT_Project.EfCore.Migrations
 {
     [DbContext(typeof(ProjectDbContext))]
-    partial class ProjectDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260302154214_Added_indexing")]
+    partial class Added_indexing
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -106,7 +109,6 @@ namespace ADAT_Project.EfCore.Migrations
                     b.HasKey("CardId");
 
                     b.HasIndex("Name")
-                        .IsUnique()
                         .HasDatabaseName("IX_cards_name");
 
                     b.ToTable("cards");

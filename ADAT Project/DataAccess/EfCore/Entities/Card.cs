@@ -1,12 +1,14 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
+using System.Text;
 
 namespace ADAT_Project.DataAccess.EfCore.Entities;
 
 [Table("cards")]
+[Index(nameof(Name), IsUnique = true)]
 public partial class Card
 {
     [Key]
@@ -49,4 +51,61 @@ public partial class Card
     [ForeignKey("CardId")]
     [InverseProperty("Cards")]
     public virtual ICollection<Color> Colors { get; set; } = new List<Color>();
+
+    public override string ToString()
+    {
+        return $"{Name} [{ManaCost ?? "—"}] ({Rarity ?? "Unknown"})"
+             + (IsLegendary == true ? " *" : "");
+    }
+
+    public string ToFullDetailString()
+    {
+        var sb = new StringBuilder();
+
+        sb.Append(Name);
+
+        if (IsLegendary == true)
+            sb.Append(" (Legendary)");
+
+        sb.AppendLine();
+
+        sb.AppendLine($"Mana Cost: {ManaCost ?? "—"}");
+        sb.AppendLine($"Rarity: {Rarity ?? "Unknown"}");
+
+        if (Cardtypes?.Any() == true)
+        {
+            var typeNames = Cardtypes.Select(t => t.Name);
+            sb.AppendLine($"Type: {string.Join(" ", typeNames)}");
+        }
+
+        if (Power != null || Toughness != null)
+            sb.AppendLine($"P/T: {Power ?? "?"}/{Toughness ?? "?"}");
+
+        if (!string.IsNullOrWhiteSpace(OracleText))
+        {
+            sb.AppendLine();
+            sb.AppendLine("Text:");
+            sb.AppendLine(OracleText);
+        }
+
+        if (CardPrintings?.Any() == true)
+        {
+            sb.AppendLine();
+            sb.AppendLine("Printings:");
+            foreach (var printing in CardPrintings)
+            {
+                var setCode = printing.Set?.Code ?? "Unknown";
+                sb.AppendLine($"- {setCode} #{printing.CollectorNumber ?? "?"}");
+            }
+        }
+
+        if (Colors?.Any() == true)
+        {
+            var colorNames = Colors.Select(c => c.Name);
+            sb.AppendLine();
+            sb.AppendLine($"Colors: {string.Join(", ", colorNames)}");
+        }
+
+        return sb.ToString();
+    }
 }
