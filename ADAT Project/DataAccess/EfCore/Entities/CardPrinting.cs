@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace ADAT_Project.DataAccess.EfCore.Entities;
 
 [Table("card_printings")]
+[Index(nameof(SetId), nameof(CollectorNumber), IsUnique = true)]
 public partial class CardPrinting
 {
     [Key]

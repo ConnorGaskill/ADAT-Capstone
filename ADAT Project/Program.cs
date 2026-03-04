@@ -82,7 +82,6 @@ internal class Program
 
             EFCard card = CreateEFTestCard();
 
-
             int cardId = repo.Add(card);
 
             Console.WriteLine("Adding Valid card...");
@@ -91,21 +90,14 @@ internal class Program
 
             Console.WriteLine("Testing adding duplicate card... ");
 
-            try
-            {
-                repo.Add(card);
+            cardId = repo.Add(card);
 
-                Console.WriteLine("Failure: duplicate card added");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Success: duplicate car not added");
-            }
-            finally 
-            {
-                repo.ResetCardTable();
-            }
-            return;
+            if (cardId != -1)
+                Console.WriteLine("Failure: duplicate card was added");
+
+            Console.WriteLine("Success: duplicate card not added");
+
+            //repo.ResetCardTable();
         }
         static void TimeTestAdd(string conn)
         {

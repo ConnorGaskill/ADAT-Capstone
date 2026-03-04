@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace ADAT_Project.DataAccess.EfCore.Entities;
 
 [Table("cardtypes")]
-[Index("Name", Name = "UQ_types_name", IsUnique = true)]
+[Index(nameof(Name), IsUnique = true)]
 public partial class Cardtype
 {
     [Key]

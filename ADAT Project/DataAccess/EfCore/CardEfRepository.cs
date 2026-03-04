@@ -8,6 +8,7 @@ namespace ADAT_Project.DataAccess.EfCore
 {
     public class CardEfRepository : IDataAccess<Card>
     {
+
         private readonly ProjectDbContext _context;
 
         public CardEfRepository(ProjectDbContext context)
@@ -25,24 +26,128 @@ namespace ADAT_Project.DataAccess.EfCore
         public Card? GetById(int id)
         {
             return _context.Cards
-                           .AsNoTracking()
-                           .FirstOrDefault(c => c.CardId == id);
+            .AsNoTracking()
+            .FirstOrDefault(c => c.CardId == id);
         }
 
         public int Add(Card entity)
         {
+            using var transaction = _context.Database.BeginTransaction();
+
             try
             {
-                _context.Cards.Add(entity);
-                _context.SaveChanges();
-            }
-            catch (Exception ex) { 
+                // Resolve / Insert card (by Name)
+                var card = _context.Cards
+                    .FirstOrDefault(c => c.Name == entity.Name);
 
-                throw new Exception($"Add operation failed for card '{entity.Name}'", ex);
-            
+                if (card == null)
+                {
+                    card = new Card
+                    {
+                        Name = entity.Name,
+                        ManaCost = entity.ManaCost,
+                        OracleText = entity.OracleText,
+                        Power = entity.Power,
+                        Toughness = entity.Toughness,
+                        Rarity = entity.Rarity,
+                        IsLegendary = entity.IsLegendary
+                    };
+
+                    _context.Cards.Add(card);
+                    _context.SaveChanges();
+                }
+
+                // Resolve colors
+                var resolvedColors = new List<Color>();
+
+                foreach (var incomingColor in entity.Colors ?? Enumerable.Empty<Color>())
+                {
+                    var color = _context.Colors
+                        .FirstOrDefault(c => c.Name == incomingColor.Name);
+
+                    if (color == null)
+                    {
+                        color = new Color { Name = incomingColor.Name };
+                        _context.Colors.Add(color);
+                    }
+
+                    resolvedColors.Add(color);
+                }
+
+                card.Colors = resolvedColors;
+
+                // Resolve cardtypes
+
+                var resolvedTypes = new List<Cardtype>();
+
+                foreach (var incomingType in entity.Cardtypes ?? Enumerable.Empty<Cardtype>())
+                {
+                    var type = _context.Cardtypes
+                        .FirstOrDefault(t => t.Name == incomingType.Name);
+
+                    if (type == null)
+                    {
+                        type = new Cardtype { Name = incomingType.Name };
+                        _context.Cardtypes.Add(type);
+                    }
+
+                    resolvedTypes.Add(type);
+                }
+
+                card.Cardtypes = resolvedTypes;
+
+                // Resolve printings
+
+                foreach (var incomingPrinting in entity.CardPrintings ?? Enumerable.Empty<CardPrinting>())
+                {
+                    var set = _context.Sets
+                        .FirstOrDefault(s => s.Code == incomingPrinting.Set.Code)
+                        ?? new Set
+                        {
+                            Code = incomingPrinting.Set.Code,
+                            Name = incomingPrinting.Set.Name
+                        };
+
+                    if (set.SetId == 0)
+                        _context.Sets.Add(set);
+
+                    var printing = new CardPrinting
+                    {
+                        Card = card,
+                        Set = set,
+                        CollectorNumber = incomingPrinting.CollectorNumber
+                    };
+
+                    _context.CardPrintings.Add(printing);
+                }
+
+                // Save changes
+                _context.SaveChanges();
+
+                transaction.Commit();
+                return card.CardId;
             }
-            return entity.CardId;
+            catch (DbUpdateException)
+            {
+                transaction.Rollback();
+                return -1;
+            }
         }
+
+        //public int Add(Card entity)
+        //{
+        //    try
+        //    {
+        //        _context.Cards.Add(entity);
+        //        _context.SaveChanges();
+        //    }
+        //    catch (Exception ex) { 
+
+        //        return -1;
+
+        //    }
+        //    return entity.CardId;
+        //}
 
         public bool Update(Card entity)
         {

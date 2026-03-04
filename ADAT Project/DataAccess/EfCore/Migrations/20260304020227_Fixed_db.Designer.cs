@@ -4,6 +4,7 @@ using ADAT_Project.DataAccess.EfCore.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ADAT_Project.EfCore.Migrations
 {
     [DbContext(typeof(ProjectDbContext))]
-    partial class ProjectDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260304020227_Fixed_db")]
+    partial class Fixed_db
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -107,9 +110,6 @@ namespace ADAT_Project.EfCore.Migrations
                     b.HasKey("CardId")
                         .HasName("PK__cards__BDF201DD93F2652B");
 
-                    b.HasIndex("Name")
-                        .IsUnique();
-
                     b.ToTable("cards");
                 });
 
@@ -140,9 +140,7 @@ namespace ADAT_Project.EfCore.Migrations
 
                     b.HasIndex("CardId");
 
-                    b.HasIndex("SetId", "CollectorNumber")
-                        .IsUnique()
-                        .HasFilter("[collector_number] IS NOT NULL");
+                    b.HasIndex("SetId");
 
                     b.ToTable("card_printings");
                 });
@@ -165,9 +163,6 @@ namespace ADAT_Project.EfCore.Migrations
                     b.HasKey("CardtypeId")
                         .HasName("PK__types__2C0005983128B7D4");
 
-                    b.HasIndex("Name")
-                        .IsUnique();
-
                     b.ToTable("cardtypes");
                 });
 
@@ -188,9 +183,6 @@ namespace ADAT_Project.EfCore.Migrations
 
                     b.HasKey("ColorId")
                         .HasName("PK__colors__1143CECB01BE8A19");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
 
                     b.ToTable("colors");
                 });
@@ -224,12 +216,6 @@ namespace ADAT_Project.EfCore.Migrations
 
                     b.HasKey("SetId")
                         .HasName("PK__sets__14B092A38E8A0E17");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.HasIndex("Name")
-                        .IsUnique();
 
                     b.ToTable("sets");
                 });

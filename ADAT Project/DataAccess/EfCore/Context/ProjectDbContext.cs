@@ -1,4 +1,6 @@
-﻿using ADAT_Project.DataAccess.EfCore.Entities;
+﻿using System;
+using System.Collections.Generic;
+using ADAT_Project.DataAccess.EfCore.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace ADAT_Project.DataAccess.EfCore.Context;
@@ -15,151 +17,98 @@ public partial class ProjectDbContext : DbContext
     }
 
     public virtual DbSet<AuditLog> AuditLogs { get; set; }
+
     public virtual DbSet<Card> Cards { get; set; }
+
     public virtual DbSet<CardPrinting> CardPrintings { get; set; }
+
     public virtual DbSet<Cardtype> Cardtypes { get; set; }
+
     public virtual DbSet<Color> Colors { get; set; }
+
     public virtual DbSet<Set> Sets { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        => optionsBuilder.UseSqlServer(
-            "Server=(localdb)\\MSSQLLocalDB;Database=mtg_database;Trusted_Connection=True;");
+#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
+        => optionsBuilder.UseSqlServer("Server=(localdb)\\MSSQLLocalDB;Database=mtg_database;Trusted_Connection=True;");
+        //.EnableSensitiveDataLogging().LogTo(Console.WriteLine);
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // AUDIT LOG
         modelBuilder.Entity<AuditLog>(entity =>
         {
-            entity.HasKey(e => e.AuditId);
+            entity.HasKey(e => e.AuditId).HasName("PK__audit_lo__5AF33E33520C6B02");
 
-            entity.Property(e => e.CreatedAt)
-                  .HasDefaultValueSql("sysutcdatetime()");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
         });
 
-        // CARD
         modelBuilder.Entity<Card>(entity =>
         {
-            entity.HasKey(e => e.CardId);
+            entity.HasKey(e => e.CardId).HasName("PK__cards__BDF201DD93F2652B");
 
-            entity.Property(e => e.IsLegendary)
-                  .HasDefaultValue(false);
+            entity.Property(e => e.IsLegendary).HasDefaultValue(false);
 
-            // Index (search by name)
-            entity.HasIndex(e => e.Name)
-                  .HasDatabaseName("IX_cards_name");
-
-            // Many-to-many: Card <-> Cardtype
-            entity.HasMany(d => d.Cardtypes)
-                .WithMany(p => p.Cards)
+            entity.HasMany(d => d.Cardtypes).WithMany(p => p.Cards)
                 .UsingEntity<Dictionary<string, object>>(
                     "CardCardtype",
-                    r => r.HasOne<Cardtype>()
-                          .WithMany()
-                          .HasForeignKey("CardtypeId")
-                          .OnDelete(DeleteBehavior.Cascade),
-                    l => l.HasOne<Card>()
-                          .WithMany()
-                          .HasForeignKey("CardId")
-                          .OnDelete(DeleteBehavior.Cascade),
+                    r => r.HasOne<Cardtype>().WithMany()
+                        .HasForeignKey("CardtypeId")
+                        .HasConstraintName("FK__card_type__type___5AEE82B9"),
+                    l => l.HasOne<Card>().WithMany()
+                        .HasForeignKey("CardId")
+                        .HasConstraintName("FK__card_type__card___59FA5E80"),
                     j =>
                     {
+                        j.HasKey("CardId", "CardtypeId").HasName("PK__card_typ__2F320184F90159ED");
                         j.ToTable("card_cardtypes");
-
-                        j.HasKey("CardId", "CardtypeId");
-
-                        j.IndexerProperty<int>("CardId")
-                         .HasColumnName("card_id");
-
-                        j.IndexerProperty<int>("CardtypeId")
-                         .HasColumnName("cardtype_id");
-
-                        // Reverse index
-                        j.HasIndex("CardtypeId")
-                         .HasDatabaseName("IX_card_cardtypes_cardtype_id");
+                        j.IndexerProperty<int>("CardId").HasColumnName("card_id");
+                        j.IndexerProperty<int>("CardtypeId").HasColumnName("cardtype_id");
                     });
 
-            // Many-to-many: Card <-> Color
-            entity.HasMany(d => d.Colors)
-                .WithMany(p => p.Cards)
+            entity.HasMany(d => d.Colors).WithMany(p => p.Cards)
                 .UsingEntity<Dictionary<string, object>>(
                     "CardColor",
-                    r => r.HasOne<Color>()
-                          .WithMany()
-                          .HasForeignKey("ColorId")
-                          .OnDelete(DeleteBehavior.Cascade),
-                    l => l.HasOne<Card>()
-                          .WithMany()
-                          .HasForeignKey("CardId")
-                          .OnDelete(DeleteBehavior.Cascade),
+                    r => r.HasOne<Color>().WithMany()
+                        .HasForeignKey("ColorId")
+                        .HasConstraintName("FK__card_colo__color__571DF1D5"),
+                    l => l.HasOne<Card>().WithMany()
+                        .HasForeignKey("CardId")
+                        .HasConstraintName("FK__card_colo__card___5629CD9C"),
                     j =>
                     {
+                        j.HasKey("CardId", "ColorId").HasName("PK__card_col__1CE63D317B235600");
                         j.ToTable("card_colors");
-
-                        j.HasKey("CardId", "ColorId");
-
-                        j.IndexerProperty<int>("CardId")
-                         .HasColumnName("card_id");
-
-                        j.IndexerProperty<int>("ColorId")
-                         .HasColumnName("color_id");
-
-                        // Reverse index
-                        j.HasIndex("ColorId")
-                         .HasDatabaseName("IX_card_colors_color_id");
+                        j.IndexerProperty<int>("CardId").HasColumnName("card_id");
+                        j.IndexerProperty<int>("ColorId").HasColumnName("color_id");
                     });
         });
 
-        // CARD PRINTINGS
         modelBuilder.Entity<CardPrinting>(entity =>
         {
-            entity.HasKey(e => e.PrintingId);
+            entity.HasKey(e => e.PrintingId).HasName("PK__card_pri__15FFEFA27DBF2B4F");
 
-            entity.HasOne(d => d.Card)
-                  .WithMany(p => p.CardPrintings)
-                  .HasForeignKey(d => d.CardId)
-                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(d => d.Card).WithMany(p => p.CardPrintings).HasConstraintName("FK__card_prin__card___5DCAEF64");
 
-            entity.HasOne(d => d.Set)
-                  .WithMany(p => p.CardPrintings)
-                  .HasForeignKey(d => d.SetId)
-                  .OnDelete(DeleteBehavior.Cascade);
-
-            // FK indexes
-            entity.HasIndex(e => e.CardId)
-                  .HasDatabaseName("IX_card_printings_card_id");
-
-            entity.HasIndex(e => e.SetId)
-                  .HasDatabaseName("IX_card_printings_set_id");
+            entity.HasOne(d => d.Set).WithMany(p => p.CardPrintings).HasConstraintName("FK__card_prin__set_i__5EBF139D");
         });
 
-        // CARDTYPE
         modelBuilder.Entity<Cardtype>(entity =>
         {
-            entity.HasKey(e => e.CardtypeId);
-
-            entity.HasIndex(e => e.Name)
-                  .IsUnique()
-                  .HasDatabaseName("UQ_types_name");
+            entity.HasKey(e => e.CardtypeId).HasName("PK__types__2C0005983128B7D4");
         });
 
-        // COLOR
         modelBuilder.Entity<Color>(entity =>
         {
-            entity.HasKey(e => e.ColorId);
-
-            entity.HasIndex(e => e.Name)
-                  .IsUnique()
-                  .HasDatabaseName("UQ_colors_name");
+            entity.HasKey(e => e.ColorId).HasName("PK__colors__1143CECB01BE8A19");
         });
 
-        // SET
         modelBuilder.Entity<Set>(entity =>
         {
-            entity.HasKey(e => e.SetId);
-
-            entity.HasIndex(e => e.Code)
-                  .IsUnique()
-                  .HasDatabaseName("UQ_sets_code");
+            entity.HasKey(e => e.SetId).HasName("PK__sets__14B092A38E8A0E17");
         });
+
+        OnModelCreatingPartial(modelBuilder);
     }
+
+    partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
 }

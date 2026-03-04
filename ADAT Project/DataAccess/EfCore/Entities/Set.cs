@@ -6,8 +6,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ADAT_Project.DataAccess.EfCore.Entities;
 
+[Index(nameof(Name), IsUnique = true)]
+[Index(nameof(Code), IsUnique = true)]
 [Table("sets")]
-[Index("Code", Name = "UQ__sets__357D4CF97C5356A3", IsUnique = true)]
 public partial class Set
 {
     [Key]
