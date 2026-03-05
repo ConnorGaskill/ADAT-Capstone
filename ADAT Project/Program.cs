@@ -34,7 +34,11 @@ internal class Program
         //TestEfGetAll(context);
         //TestEfGetAllEfGetById(context);
 
-        TestEfAdd(context);
+        //TestEfAdd(context);
+
+        //TestEFDelete(context);
+
+        TestEFUpdate(context);
 
         static void TestEfGetAll(ProjectDbContext context)
         {
@@ -93,12 +97,76 @@ internal class Program
             cardId = repo.Add(card);
 
             if (cardId != -1)
+            {
                 Console.WriteLine("Failure: duplicate card was added");
+                repo.ResetCardTable();
+                return;
+            }
 
             Console.WriteLine("Success: duplicate card not added");
 
-            //repo.ResetCardTable();
+            repo.ResetCardTable();
         }
+
+        static void TestEFDelete (ProjectDbContext context) {
+
+            var repo = new CardEfRepository(context);
+
+            int cardId = repo.Add(CreateEFTestCard());
+
+            Console.WriteLine("Getting added card...");
+
+            Console.WriteLine(repo.GetById(cardId)!.ToFullDetailString());
+
+            Console.WriteLine("\nDeleting card...");
+
+            repo.Delete(cardId);
+
+            if (repo.GetById(cardId) is null)
+            {
+                Console.WriteLine("Success: card successfully deleted");
+                repo.ResetCardTable();
+                return;
+            }
+
+            Console.WriteLine("Failure: delete failed");
+            repo.ResetCardTable();
+        }
+
+        static void TestEFUpdate(ProjectDbContext context) { 
+
+            var repo = new CardEfRepository(context);
+
+            EFCard card = repo.GetById(1)!;
+
+            Console.WriteLine($"Card before change: {card.ToFullDetailString()}");
+
+            Console.WriteLine("Updating card...");
+
+            string testName = "This is a test";
+
+            card.Name = testName;
+
+            repo.Update(card);
+
+            card = repo.GetById(1)!;
+
+            Console.WriteLine($"Updated card: {card.ToFullDetailString()}");
+
+            if (card.Name == testName) {
+
+                Console.WriteLine("Success: card was updated");
+
+                repo.ResetCardTable();
+                return;
+            }
+
+            Console.WriteLine("Failure: card was not updated");
+
+            repo.ResetCardTable();
+
+        }
+
         static void TimeTestAdd(string conn)
         {
             CardRepository repo = new CardRepository(conn);
@@ -167,6 +235,7 @@ internal class Program
             }
             repo.ResetCardTable();
         }
+
         static void TestGetAll(string conn)
         {
             CardRepository repo = new CardRepository(conn);
@@ -223,6 +292,7 @@ internal class Program
             }
             repo.ResetCardTable();
         }
+
         static void TestGetAllFull(string conn)
         {
 

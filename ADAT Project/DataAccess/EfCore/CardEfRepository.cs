@@ -19,8 +19,8 @@ namespace ADAT_Project.DataAccess.EfCore
         public IEnumerable<Card> GetAll()
         {
             return _context.Cards
-                           .AsNoTracking()
-                           .ToList();
+                .AsNoTracking()
+                .ToList();
         }
 
         public Card? GetById(int id)
@@ -54,7 +54,7 @@ namespace ADAT_Project.DataAccess.EfCore
                     };
 
                     _context.Cards.Add(card);
-                    _context.SaveChanges();
+                    _context.SaveChanges(); // This makes sure I can return the cardId
                 }
 
                 // Resolve colors
@@ -133,21 +133,6 @@ namespace ADAT_Project.DataAccess.EfCore
                 return -1;
             }
         }
-
-        //public int Add(Card entity)
-        //{
-        //    try
-        //    {
-        //        _context.Cards.Add(entity);
-        //        _context.SaveChanges();
-        //    }
-        //    catch (Exception ex) { 
-
-        //        return -1;
-
-        //    }
-        //    return entity.CardId;
-        //}
 
         public bool Update(Card entity)
         {
