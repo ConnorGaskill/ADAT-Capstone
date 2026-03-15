@@ -18,7 +18,6 @@ public partial class Color
     [StringLength(20)]
     public string Name { get; set; } = null!;
 
-    [ForeignKey("ColorId")]
     [InverseProperty("Colors")]
     public virtual ICollection<Card> Cards { get; set; } = new List<Card>();
 }

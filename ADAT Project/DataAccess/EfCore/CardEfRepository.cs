@@ -1,24 +1,39 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using Microsoft.EntityFrameworkCore;
-using ADAT_Project.DataAccess.EfCore.Context;
+﻿using ADAT_Project.DataAccess.EfCore.Context;
 using ADAT_Project.DataAccess.EfCore.Entities;
+using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace ADAT_Project.DataAccess.EfCore
 {
     public class CardEfRepository : IDataAccess<Card>
     {
-
         private readonly ProjectDbContext _context;
+
+        //Cached lookup tables
+        //This is okay since these tables rarely or never change and I don't want the application side to push up bad data
+        //The cache is automatically updated upon reinitialization of the repository
+        private readonly List<Color> Colors; //never changes
+        private readonly List<Cardtype> CardTypes; //changes every 1-2 years
+        private readonly List<Set> Sets; // changes every 6 months
+
 
         public CardEfRepository(ProjectDbContext context)
         {
             _context = context;
+
+            Colors = _context.Colors.ToList();
+            CardTypes = _context.Cardtypes.ToList();
+            Sets = _context.Sets.ToList();
         }
 
         public IEnumerable<Card> GetAll()
         {
             return _context.Cards
+                .Include(c => c.CardPrintings)
+                    .ThenInclude(cp => cp.Set)
+                .Include(c => c.Colors)
+                .Include(c => c.Cardtypes)
                 .AsNoTracking()
                 .ToList();
         }
@@ -26,8 +41,21 @@ namespace ADAT_Project.DataAccess.EfCore
         public Card? GetById(int id)
         {
             return _context.Cards
-            .AsNoTracking()
+                .Include(c => c.CardPrintings)
+                    .ThenInclude(cp => cp.Set)
+                .Include(c => c.Colors)
+                .Include(c => c.Cardtypes)
+                .AsNoTracking()
             .FirstOrDefault(c => c.CardId == id);
+        }
+
+        public int Add(Set setEntity)
+        {
+            _context.Add(setEntity);
+
+            _context.SaveChanges();
+
+            return setEntity.SetId;
         }
 
         public int Add(Card entity)
@@ -36,9 +64,15 @@ namespace ADAT_Project.DataAccess.EfCore
 
             try
             {
-                // Resolve / Insert card (by Name)
+                // Load existing card with related data
                 var card = _context.Cards
+                    .Include(c => c.Colors)
+                    .Include(c => c.Cardtypes)
+                    .Include(c => c.CardPrintings)
+                        .ThenInclude(p => p.Set)
                     .FirstOrDefault(c => c.Name == entity.Name);
+
+                // Create card if it doesn't exist
 
                 if (card == null)
                 {
@@ -54,92 +88,172 @@ namespace ADAT_Project.DataAccess.EfCore
                     };
 
                     _context.Cards.Add(card);
-                    _context.SaveChanges(); // This makes sure I can return the cardId
+                    _context.SaveChanges(); // ensures CardId exists
                 }
 
-                // Resolve colors
-                var resolvedColors = new List<Color>();
+                // Map Colors
+                var cachedColors = _context.Colors.ToList();
 
-                foreach (var incomingColor in entity.Colors ?? Enumerable.Empty<Color>())
+                foreach (var incomingColor in entity.Colors)
                 {
-                    var color = _context.Colors
-                        .FirstOrDefault(c => c.Name == incomingColor.Name);
+                    var match = cachedColors.FirstOrDefault(c => c.Name == incomingColor.Name);
+                    if (match == null)
+                        throw new Exception($"Color '{incomingColor.Name}' not found in lookup table.");
 
-                    if (color == null)
-                    {
-                        color = new Color { Name = incomingColor.Name };
-                        _context.Colors.Add(color);
-                    }
-
-                    resolvedColors.Add(color);
+                    if (!card.Colors.Any(c => c.ColorId == match.ColorId))
+                        card.Colors.Add(match);
                 }
+
+                // Map CardTypes
+                var cachedCardTypes = _context.Cardtypes.ToList();
+
+                foreach (var incomingType in entity.Cardtypes)
+                {
+                    var match = cachedCardTypes.FirstOrDefault(ct => ct.Name == incomingType.Name);
+                    if (match == null)
+                        throw new Exception($"Cardtype '{incomingType.Name}' not found in lookup table.");
+
+                    if (!card.Cardtypes.Any(ct => ct.CardtypeId == match.CardtypeId))
+                        card.Cardtypes.Add(match);
+                }
+
+                // Map Printings
+                var cachedSets = _context.Sets.ToList();
+
+                foreach (var incomingPrinting in entity.CardPrintings)
+                {
+                    // Make sure Set exists
+                    var set = cachedSets.FirstOrDefault(s => s.Code == incomingPrinting.Set.Code);
+                    if (set == null)
+                        throw new Exception($"Set '{incomingPrinting.Set.Code}' not found in lookup table.");
+
+                    // Only add if this printing does not exist on the card
+                    bool printingExists = card.CardPrintings.Any(p =>
+                        p.SetId == set.SetId &&
+                        p.CollectorNumber == incomingPrinting.CollectorNumber);
+
+                    if (!printingExists)
+                    {
+                        var printing = new CardPrinting
+                        {
+                            CardId = card.CardId,
+                            SetId = set.SetId,
+                            CollectorNumber = incomingPrinting.CollectorNumber
+                        };
+
+                        card.CardPrintings.Add(printing);
+                    }
+                }
+                _context.SaveChanges();
+                transaction.Commit();
+
+                return card.CardId;
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
+        }
+
+        public int SimpleAdd(Card entity)
+        {
+            _context.Add(entity);
+
+            _context.SaveChanges();
+
+            return entity.CardId;
+        }
+        public bool Update(Card entity)
+        {
+            using var transaction = _context.Database.BeginTransaction();
+
+            try
+            {
+                var card = _context.Cards
+                    .Include(c => c.Cardtypes)
+                    .Include(c => c.Colors)
+                    .Include(c => c.CardPrintings)
+                        .ThenInclude(cp => cp.Set)
+                    .FirstOrDefault(c => c.CardId == entity.CardId);
+
+                if (card == null)
+                    return false; // card not found
+
+                // Map onto card
+                card.Name = entity.Name;
+                card.ManaCost = entity.ManaCost;
+                card.OracleText = entity.OracleText;
+                card.Power = entity.Power;
+                card.Toughness = entity.Toughness;
+                card.Rarity = entity.Rarity;
+                card.IsLegendary = entity.IsLegendary;
+
+                // Update Colors
+                var resolvedColors = (entity.Colors ?? Enumerable.Empty<Color>())
+                    .Select(c => _context.Colors.FirstOrDefault(db => db.Name == c.Name) ?? new Color { Name = c.Name })
+                    .ToList();
 
                 card.Colors = resolvedColors;
 
-                // Resolve cardtypes
-
-                var resolvedTypes = new List<Cardtype>();
-
-                foreach (var incomingType in entity.Cardtypes ?? Enumerable.Empty<Cardtype>())
-                {
-                    var type = _context.Cardtypes
-                        .FirstOrDefault(t => t.Name == incomingType.Name);
-
-                    if (type == null)
-                    {
-                        type = new Cardtype { Name = incomingType.Name };
-                        _context.Cardtypes.Add(type);
-                    }
-
-                    resolvedTypes.Add(type);
-                }
+                // Update Cardtypes
+                var resolvedTypes = (entity.Cardtypes ?? Enumerable.Empty<Cardtype>())
+                    .Select(t => _context.Cardtypes.FirstOrDefault(db => db.Name == t.Name) ?? new Cardtype { Name = t.Name })
+                    .ToList();
 
                 card.Cardtypes = resolvedTypes;
 
-                // Resolve printings
+                // Update CardPrintings
 
+                // remove old printings
+                var toRemove = card.CardPrintings
+                    .Where(cp => !entity.CardPrintings.Any(e => e.PrintingId == cp.PrintingId))
+                    .ToList();
+
+                foreach (var cp in toRemove)
+                    _context.CardPrintings.Remove(cp);
+
+                // Add/update printings
                 foreach (var incomingPrinting in entity.CardPrintings ?? Enumerable.Empty<CardPrinting>())
                 {
                     var set = _context.Sets
                         .FirstOrDefault(s => s.Code == incomingPrinting.Set.Code)
-                        ?? new Set
-                        {
-                            Code = incomingPrinting.Set.Code,
-                            Name = incomingPrinting.Set.Name
-                        };
+                        ?? new Set { Code = incomingPrinting.Set.Code, Name = incomingPrinting.Set.Name };
 
                     if (set.SetId == 0)
                         _context.Sets.Add(set);
 
-                    var printing = new CardPrinting
-                    {
-                        Card = card,
-                        Set = set,
-                        CollectorNumber = incomingPrinting.CollectorNumber
-                    };
+                    var existingPrinting = card.CardPrintings
+                        .FirstOrDefault(cp => cp.PrintingId == incomingPrinting.PrintingId);
 
-                    _context.CardPrintings.Add(printing);
+                    if (existingPrinting != null)
+                    {
+                        existingPrinting.CollectorNumber = incomingPrinting.CollectorNumber;
+                        existingPrinting.Set = set;
+                    }
+                    else
+                    {
+                        _context.CardPrintings.Add(new CardPrinting
+                        {
+                            Card = card,
+                            Set = set,
+                            CollectorNumber = incomingPrinting.CollectorNumber
+                        });
+                    }
                 }
 
                 // Save changes
                 _context.SaveChanges();
-
                 transaction.Commit();
-                return card.CardId;
+
+                return true;
             }
             catch (DbUpdateException)
             {
                 transaction.Rollback();
-                return -1;
+                return false;
             }
         }
-
-        public bool Update(Card entity)
-        {
-            _context.Cards.Update(entity);
-            return _context.SaveChanges() > 0;
-        }
-
         public bool Delete(int id)
         {
             var entity = _context.Cards.Find(id);
@@ -161,5 +275,34 @@ namespace ADAT_Project.DataAccess.EfCore
                 throw new Exception("Failed to reset card table", ex);
             }
         }
+
+        public Card CreateTestCard()
+        {
+            Card card = new Card {
+                Name = "Lightning Bolt",
+                ManaCost = "R",
+                OracleText = "Lightning Bolt deals 3 damage to any target.",
+                Power = null,
+                Toughness = null,
+                Rarity = "Common",
+                IsLegendary = false,
+            };
+
+            card.Colors.Add(new Color { Name = "Red" });
+
+            card.Cardtypes.Add(new Cardtype { Name = "Instant" });
+
+            card.CardPrintings.Add(new CardPrinting
+            {
+                CollectorNumber = "150",
+                Set = new Set {Code = "M10" }
+
+            });
+
+            return card;
+
+        }
+
+
     }
 }

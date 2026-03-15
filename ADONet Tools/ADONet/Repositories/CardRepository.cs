@@ -503,6 +503,37 @@ namespace ADONet_Tools.ADONet.Repositories
             }
         }
 
+        public Card CreateTestCard()
+        {
+            return new Card
+            {
+                Name = "Lightning Bolt",
+                ManaCost = "R",
+                OracleText = "Lightning Bolt deals 3 damage to any target.",
+                Power = null,
+                Toughness = null,
+                Rarity = "Common",
+                IsLegendary = false,
+                Colors = new List<Color>
+    {
+        new Color { Name = "Red" }
+    },
+                Types = new List<string> { "Instant" },
+                Printings = new List<Printing>
+    {
+        new Printing
+        {
+            CollectorNumber = "150",
+            Set = new Set
+            {
+                Code = "M10",
+                Name = "Magic 2010"
+            }
+        }
+    }
+            };
+        }
+
         public void ResetCardTable()
         {
             try

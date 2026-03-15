@@ -32,13 +32,71 @@ internal class Program
         //TimeTestAdd(connectionString);
 
         //TestEfGetAll(context);
-        //TestEfGetAllEfGetById(context);
-
+        //context.ChangeTracker.Clear();
+        //TestEfGetById(context);
+        //context.ChangeTracker.Clear();
         //TestEfAdd(context);
-
+        //context.ChangeTracker.Clear();
         //TestEFDelete(context);
+        //context.ChangeTracker.Clear();
+        //TestEFUpdate(context);
+        //context.ChangeTracker.Clear();
+        //TestSimpleAdd(context);
+        //context.ChangeTracker.Clear();
+        TestEfOneToManyAdd(context);
+        context.ChangeTracker.Clear();
 
-        TestEFUpdate(context);
+        static void TestEfOneToManyAdd(ProjectDbContext context)
+        {
+            var repo = new CardEfRepository(context);
+
+            repo.ResetCardTable();
+
+            var card = repo.GetById(1);
+
+            var printing = new CardPrinting
+            {
+                CollectorNumber = "024",
+                Set = new EFSet
+                {
+                    Code = "STA",
+                    Name = "Strixhaven Mystical Archives"
+                }
+            };
+
+            Console.WriteLine($"Adding a new printing to the following card...\n\n{card!.ToFullDetailString()}");
+
+            card.CardPrintings.Add(printing);
+            repo.Add(card);
+
+            Console.WriteLine($"New Printing added:\n\n{repo.GetById(card.CardId)!.ToFullDetailString()}");
+
+            card = repo.GetById(1);
+
+            bool found = card.CardPrintings.Any(cp => cp.Set.Code == "STA");
+
+            if (found){
+                Console.WriteLine("New Printing added");
+            }
+            else
+            {
+                Console.WriteLine("Could not find new printing");
+            }
+            repo.ResetCardTable();
+        }
+
+        static void TestSimpleAdd(ProjectDbContext context)
+        {
+
+            CardEfRepository repo = new CardEfRepository(context);
+            EFCard card = repo.CreateTestCard();
+
+            int id = repo.SimpleAdd(card);
+
+            Console.WriteLine($"{repo.GetById(id).ToFullDetailString()}");
+
+            repo.ResetCardTable();
+        }
 
         static void TestEfGetAll(ProjectDbContext context)
         {
@@ -57,9 +115,8 @@ internal class Program
             Console.WriteLine();
         }
 
-        static void TestEfGetAllEfGetById(ProjectDbContext context)
+        static void TestEfGetById(ProjectDbContext context)
         {
-
             var cardRepository = new CardEfRepository(context);
 
 
@@ -84,26 +141,15 @@ internal class Program
 
             repo.ResetCardTable();
 
-            EFCard card = CreateEFTestCard();
+            EFCard card = repo.CreateTestCard();
+
+            Console.WriteLine($"Adding the following Card...\n\n{card.ToFullDetailString()}");
 
             int cardId = repo.Add(card);
 
             Console.WriteLine("Adding Valid card...");
 
             Console.WriteLine($" ---Success---\nAdded Card:\n {repo.GetById(cardId)!.ToFullDetailString()}");
-
-            Console.WriteLine("Testing adding duplicate card... ");
-
-            cardId = repo.Add(card);
-
-            if (cardId != -1)
-            {
-                Console.WriteLine("Failure: duplicate card was added");
-                repo.ResetCardTable();
-                return;
-            }
-
-            Console.WriteLine("Success: duplicate card not added");
 
             repo.ResetCardTable();
         }
@@ -112,7 +158,9 @@ internal class Program
 
             var repo = new CardEfRepository(context);
 
-            int cardId = repo.Add(CreateEFTestCard());
+            repo.ResetCardTable();
+
+            int cardId = repo.Add(repo.CreateTestCard());
 
             Console.WriteLine("Getting added card...");
 
@@ -173,7 +221,7 @@ internal class Program
 
             repo.ResetCardTable();
 
-            ADOCard? card = CreateADOTestCard();
+            ADOCard? card = repo.CreateTestCard();
 
             Console.WriteLine("Testing adding a card inefficiently...");
 
@@ -201,7 +249,7 @@ internal class Program
         {
             CardRepository repo = new CardRepository(conn);
 
-            ADOCard? card = CreateADOTestCard();
+            ADOCard? card = repo.CreateTestCard(); ;
 
             int cardId = repo.Add(card);
 
@@ -343,7 +391,7 @@ internal class Program
             var cardRepo = new CardRepository(conn);
             var auditRepo = new AuditRepository(conn);
 
-            ADOCard card = CreateADOTestCard();
+            ADOCard card = cardRepo.CreateTestCard();
 
             try
             {
@@ -392,75 +440,6 @@ internal class Program
                 auditRepo.TruncateAuditTable();
                 Console.WriteLine("\nCleanup complete.");
             }
-        }
-
-        static ADOCard CreateADOTestCard()
-        {
-            return new ADOCard
-            {
-                Name = "Lightning Bolt",
-                ManaCost = "R",
-                OracleText = "Lightning Bolt deals 3 damage to any target.",
-                Power = null,
-                Toughness = null,
-                Rarity = "Common",
-                IsLegendary = false,
-                Colors = new List<ADOColor>
-    {
-        new ADOColor { Name = "Red" }
-    },
-                Types = new List<string> { "Instant" },
-                Printings = new List<Printing>
-    {
-        new Printing
-        {
-            CollectorNumber = "150",
-            Set = new ADOSet
-            {
-                Code = "M10",
-                Name = "Magic 2010"
-            }
-        }
-    }
-            };
-        }
-
-        static EFCard CreateEFTestCard()
-        {
-            return new EFCard
-            {
-                Name = "Lightning Bolt",
-                ManaCost = "R",
-                OracleText = "Lightning Bolt deals 3 damage to any target.",
-                Power = null,
-                Toughness = null,
-                Rarity = "Common",
-                IsLegendary = false,
-
-                // EF navigation properties
-                Colors = new List<EFColor>
-        {
-            new EFColor { Name = "Red" }
-        },
-
-                Cardtypes = new List<Cardtype>
-        {
-            new Cardtype { Name = "Instant" }
-        },
-
-                CardPrintings = new List<CardPrinting>
-        {
-            new CardPrinting
-            {
-                CollectorNumber = "150",
-                Set = new EFSet
-                {
-                    Code = "M10",
-                    Name = "Magic 2010"
-                }
-            }
-        }
-            };
         }
     }
 }

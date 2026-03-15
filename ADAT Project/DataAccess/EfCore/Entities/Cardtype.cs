@@ -18,7 +18,6 @@ public partial class Cardtype
     [StringLength(50)]
     public string Name { get; set; } = null!;
 
-    [ForeignKey("CardtypeId")]
     [InverseProperty("Cardtypes")]
     public virtual ICollection<Card> Cards { get; set; } = new List<Card>();
 }

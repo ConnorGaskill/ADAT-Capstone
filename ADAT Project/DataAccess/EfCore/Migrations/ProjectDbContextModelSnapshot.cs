@@ -56,7 +56,7 @@ namespace ADAT_Project.EfCore.Migrations
                     b.HasKey("AuditId")
                         .HasName("PK__audit_lo__5AF33E33520C6B02");
 
-                    b.ToTable("audit_log");
+                    b.ToTable("audit_log", (string)null);
                 });
 
             modelBuilder.Entity("ADAT_Project.DataAccess.EfCore.Entities.Card", b =>
@@ -110,7 +110,7 @@ namespace ADAT_Project.EfCore.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("cards");
+                    b.ToTable("cards", (string)null);
                 });
 
             modelBuilder.Entity("ADAT_Project.DataAccess.EfCore.Entities.CardPrinting", b =>
@@ -144,7 +144,7 @@ namespace ADAT_Project.EfCore.Migrations
                         .IsUnique()
                         .HasFilter("[collector_number] IS NOT NULL");
 
-                    b.ToTable("card_printings");
+                    b.ToTable("card_printings", (string)null);
                 });
 
             modelBuilder.Entity("ADAT_Project.DataAccess.EfCore.Entities.Cardtype", b =>
@@ -168,7 +168,7 @@ namespace ADAT_Project.EfCore.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("cardtypes");
+                    b.ToTable("cardtypes", (string)null);
                 });
 
             modelBuilder.Entity("ADAT_Project.DataAccess.EfCore.Entities.Color", b =>
@@ -192,7 +192,7 @@ namespace ADAT_Project.EfCore.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("colors");
+                    b.ToTable("colors", (string)null);
                 });
 
             modelBuilder.Entity("ADAT_Project.DataAccess.EfCore.Entities.Set", b =>
@@ -231,7 +231,7 @@ namespace ADAT_Project.EfCore.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("sets");
+                    b.ToTable("sets", (string)null);
                 });
 
             modelBuilder.Entity("CardCardtype", b =>

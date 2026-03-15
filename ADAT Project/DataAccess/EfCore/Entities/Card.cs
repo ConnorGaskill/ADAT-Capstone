@@ -41,14 +41,15 @@ public partial class Card
     [Column("is_legendary")]
     public bool? IsLegendary { get; set; }
 
+    //One to Many
     [InverseProperty("Card")]
     public virtual ICollection<CardPrinting> CardPrintings { get; set; } = new List<CardPrinting>();
 
-    [ForeignKey("CardId")]
+    //Many to Many
     [InverseProperty("Cards")]
     public virtual ICollection<Cardtype> Cardtypes { get; set; } = new List<Cardtype>();
 
-    [ForeignKey("CardId")]
+    //Many to Many
     [InverseProperty("Cards")]
     public virtual ICollection<Color> Colors { get; set; } = new List<Color>();
 
