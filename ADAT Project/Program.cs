@@ -43,8 +43,74 @@ internal class Program
         //context.ChangeTracker.Clear();
         //TestSimpleAdd(context);
         //context.ChangeTracker.Clear();
-        TestEfOneToManyAdd(context);
+        //TestEfOneToManyAdd(context);
+        //context.ChangeTracker.Clear();
+        TestEFResetCardTable(context);
         context.ChangeTracker.Clear();
+        TestEFMaxReseedCardTable(context);
+        context.ChangeTracker.Clear();
+
+        static void TestEFMaxReseedCardTable(ProjectDbContext context)
+        {
+            CardEfRepository repo = new CardEfRepository(context);
+
+            repo.ResetCardTable();
+
+            int cardCount = repo.GetAll().ToList().Count;
+
+            Console.WriteLine($"Current seed data contains {cardCount}");
+
+            Console.WriteLine("Resetting and seeding only the first 5 cards...");
+
+            repo.ResetCardTable(5);
+
+            cardCount = repo.GetAll().ToList().Count;
+
+            if (cardCount != 5)
+                Console.WriteLine("Failure: card table did not reseed specified number of cards");
+
+            Console.WriteLine($"Success: Card table reseeded {cardCount} cards.");
+
+            repo.ResetCardTable();
+        }
+
+        static void TestEFResetCardTable(ProjectDbContext context)
+        {
+
+            var repo = new CardEfRepository(context);
+
+            repo.ResetCardTable();
+
+            var card = repo.GetById(repo.Add(repo.CreateTestCard()));
+
+            List<EFCard> cards = repo.GetAll().ToList();
+
+            Console.WriteLine($"Adding card to base seed data...\n\nCard Added:\n{card.ToString()}");
+
+            Console.WriteLine($"Current cards in the Card Table: Total {cards.Count()}\n");
+
+            foreach (EFCard c in cards)
+                Console.WriteLine(c.ToString()!);
+
+            Console.WriteLine("\nTesting Card Table reset with EF Core...\n\n");
+
+            repo.ResetCardTable();
+
+            cards = repo.GetAll().ToList();
+
+            foreach (EFCard c in cards)
+                Console.WriteLine(c.ToString()!);
+
+            if (repo.GetById(card.CardId) is null)
+            {
+                Console.WriteLine($"Success: Card data has been reset. Total {cards.Count()}");
+            }
+            else
+            {
+                Console.WriteLine($"Failure: Card data has not been reset. Total {cards.Count()}");
+            }
+
+        }
 
         static void TestEfOneToManyAdd(ProjectDbContext context)
         {

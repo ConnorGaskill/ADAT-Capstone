@@ -534,12 +534,13 @@ namespace ADONet_Tools.ADONet.Repositories
             };
         }
 
-        public void ResetCardTable()
+        public void ResetCardTable(int? maxSize = null)
         {
             try
             {
                 using SqlConnection conn = new SqlConnection(_connectionString);
                 using SqlCommand cmd = new SqlCommand("ResetCardTable", conn);
+                cmd.Parameters.AddWithValue("@SeedCount", (object?) maxSize ?? DBNull.Value);
 
                 cmd.CommandType = CommandType.StoredProcedure;
 

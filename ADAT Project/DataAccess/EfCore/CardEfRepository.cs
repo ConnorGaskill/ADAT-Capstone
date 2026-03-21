@@ -1,5 +1,6 @@
 ﻿using ADAT_Project.DataAccess.EfCore.Context;
 using ADAT_Project.DataAccess.EfCore.Entities;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Linq;
@@ -264,11 +265,12 @@ namespace ADAT_Project.DataAccess.EfCore
             return _context.SaveChanges() > 0;
         }
 
-        public void ResetCardTable()
+        public void ResetCardTable(int? maxSize = null)
         {
             try
             {
-                _context.Database.ExecuteSqlRaw("EXEC ResetCardTable");
+                _context.Database.ExecuteSqlRaw("EXEC ResetCardTable @SeedCount",
+                    new SqlParameter("@SeedCount", (object?)maxSize ?? DBNull.Value));
             }
             catch (Exception ex)
             {
